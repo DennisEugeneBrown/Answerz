@@ -1,0 +1,71 @@
+{
+    "LUIS": {
+        "luis_app_id": "ad7b56ef-a4c5-4538-a19a-6add68451f43",
+        "luis_use_staging": true,
+        "luis_subscription_key": "c200500e4a404c91a027614273eac192"
+    },
+    "DB": {
+        "driver": "{SQL Server}",
+        "server": "mssql",
+        "host": "answerz.database.windows.net",
+        "port": 1433,
+        "database": "answerzdb",
+        "user": "root1234",
+        "password": "Bffspoew1234"
+    },
+    "DATAMAP": {
+        "Calls": {
+            "Aggregations": [
+                {
+                    "name": "Count",
+                    "tables": [
+                        "CallLog"
+                    ],
+                    "default": true,
+                    "columns": [
+                        {
+                            "type": "agg",
+                            "agg": "count",
+                            "distinct": true,
+                            "field": "CallReportNum"
+                        }
+                    ]
+                }
+            ],
+            "Dimensions": [
+                {
+                    "class": "field",
+                    "type": "datetime",
+                    "name": "Date",
+                    "field": "Date",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "County",
+                    "field": "CallerCounty",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Gender",
+                    "field": "Gender"
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Need",
+                    "field": "CallLogNeeds.Need",
+                    "joins": [
+                        [
+                            "CallLogNeeds",
+                            "CallLog.CallReportNum=CallLogNeeds.CallLogId"
+                        ]
+                    ]
+                }
+            ]
+        }
+    }
+}
