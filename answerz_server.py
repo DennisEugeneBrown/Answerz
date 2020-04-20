@@ -217,6 +217,8 @@ class QueryBlockRenderer:
 
             if (op == "eq"):
                 return encodeLHS(lhs) + " = " + encodeRHS(rhs)
+            if (op == "lk"):
+                return encodeLHS(lhs) + " like " + encodeRHS(rhs)
             if (op == "lt"):
                 return encodeLHS(lhs) + " < " + encodeRHS(rhs)
             if (op == "lte"):
@@ -531,7 +533,10 @@ class ColumnEntityDecoder(EntityDecoderBase):
     def decode(self, entity, query_block):
         # print(entity)
         if 'resolution' in entity:
-            values = entity["resolution"]["values"]
+            if 'values' in entity['resolution']:
+                values = entity["resolution"]["values"]
+            else:
+                values = [entity['resolution']['value']]
         else:
             values = [entity]
 
@@ -541,10 +546,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
             #elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
 
             entity_name = entity["type"]
-            if 'resolution' in entity:
-                entity_value = entity["resolution"]["values"][0]
-            else:
-                entity_value = entity['entity']
+            entity_value = values[0]
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -558,6 +560,10 @@ class ColumnEntityDecoder(EntityDecoderBase):
             #     else:
             #         entity_value = 'YES'
 
+            exact_match = True
+            if 'exact_match' in lu and lu['exact_match'] == False:
+                exact_match = False
+
             qb = QueryBlock(query_block.queryIntent)
 
             for table in tables:
@@ -570,11 +576,19 @@ class ColumnEntityDecoder(EntityDecoderBase):
             db_values = self.mapValues(tables[0], field_name, entity_value)
             if (len(db_values) == 1):
 
-                if ("." in field_name):  # already scoped
-                    qb.conditions.append(["eq", field_name, entity_value])
+                if exact_match:
+                    if ("." in field_name):  # already scoped
+                        qb.conditions.append(["eq", field_name, entity_value])
+                    else:
+                        qb.conditions.append(
+                            ["eq", tables[0] + "." + field_name, entity_value])
                 else:
-                    qb.conditions.append(
-                        ["eq", tables[0] + "." + field_name, entity_value])
+                    if ("." in field_name):  # already scoped
+                        qb.conditions.append(
+                            ["lk", field_name, '%'+entity_value+'%'])
+                    else:
+                        qb.conditions.append(
+                            ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
 
                 if ("joins" in lu and lu["joins"]):
                     for join in lu["joins"]:
@@ -633,6 +647,10 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             else:
                 entity_value = 'YES'
 
+            exact_match = True
+            if 'exact_match' in lu and lu['exact_match'] == False:
+                exact_match = False
+
             qb = QueryBlock(query_block.queryIntent)
 
             for table in tables:
@@ -645,11 +663,19 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             db_values = self.mapValues(tables[0], field_name, entity_value)
             if (len(db_values) == 1):
 
-                if ("." in field_name):  # already scoped
-                    qb.conditions.append(["eq", field_name, entity_value])
+                if exact_match:
+                    if ("." in field_name):  # already scoped
+                        qb.conditions.append(["eq", field_name, entity_value])
+                    else:
+                        qb.conditions.append(
+                            ["eq", tables[0] + "." + field_name, entity_value])
                 else:
-                    qb.conditions.append(
-                        ["eq", tables[0] + "." + field_name, entity_value])
+                    if ("." in field_name):  # already scoped
+                        qb.conditions.append(
+                            ["lk", field_name, '%'+entity_value+'%'])
+                    else:
+                        qb.conditions.append(
+                            ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
 
                 if ("joins" in lu and lu["joins"]):
                     for join in lu["joins"]:
@@ -815,7 +841,7 @@ class LuisIntentProcessor:
             this_intent, q["entities"], prev_q=prev_q)
 
         entity_list = []
-        print(q['entities'])
+        pprint(q['entities'])
         for e in q["entities"]:
             entity_list.append(e)
 
@@ -953,7 +979,7 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "how many callers from 92672")
+        "how many referrals to mercy house")
     print()
     print(result)
     # print('----------------')

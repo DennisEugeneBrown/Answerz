@@ -57,6 +57,34 @@
                 {
                     "class": "field",
                     "type": "string",
+                    "name": "builtin.currency",
+                    "field": "AnnualIncome",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "int",
+                    "name": "builtin.age",
+                    "field": "age",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "int",
+                    "name": "builtin.number",
+                    "field": "CallLength",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Race",
+                    "field": "Race",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
                     "name": "ZipCode",
                     "field": "ZipCode",
                     "joins": null
@@ -66,6 +94,13 @@
                     "type": "string",
                     "name": "PhoneWorker",
                     "field": "PhoneWorker",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "TargetPopulation",
+                    "field": "TargetPopulation",
                     "joins": null
                 },
                 {
@@ -160,6 +195,20 @@
                 },
                 {
                     "class": "field",
+                    "type": "int",
+                    "name": "Call Length",
+                    "field": "CallLength",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "PhoneWorker",
+                    "field": "PhoneWorker",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "string",
                     "name": "City",
                     "display_name": "City",
@@ -184,8 +233,50 @@
                 {
                     "class": "field",
                     "type": "string",
+                    "name": "ZipCode",
+                    "field": "ZipCode",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "TargetPopulation",
+                    "field": "TargetPopulation",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
                     "name": "Language",
                     "field": "Language",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherDVCall",
+                    "field": "WhetherDVCall",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Age",
+                    "field": "Age",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "AgesInHousehold",
+                    "field": "AgesInHousehold",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherLGBTQ",
+                    "field": "WhetherLGBTQ",
                     "joins": null
                 },
                 {
@@ -198,8 +289,148 @@
                 {
                     "class": "field",
                     "type": "string",
+                    "name": "SizeOfHousehold",
+                    "field": "SizeOfHousehold",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "NumberOfChildrenInHousehold",
+                    "field": "NumberOfChildrenInHousehold",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherVeteran",
+                    "field": "WhetherVeteran",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherVetWithChildren",
+                    "field": "WhetherVetWithChildren",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Race",
+                    "field": "Race",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherMarried",
+                    "field": "WhetherMarried",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherSafePlaceToStay",
+                    "field": "WhetherSafePlaceToStay",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "LivingSituation",
+                    "field": "LivingSituation",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "HomelessType",
+                    "field": "HomelessType",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "AnnualIncome",
+                    "field": "AnnualIncome",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "BranchOfService",
+                    "field": "BranchOfService",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "YearsServed",
+                    "field": "YearsServed",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherInterestedInCalFresh",
+                    "field": "WhetherInterestedInCalFresh",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherInterestedInTaxPrep",
+                    "field": "WhetherInterestedInTaxPrep",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherCombatVet",
+                    "field": "WhetherCombatVet",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "VetDischargeStatus",
+                    "field": "VetDischargeStatus",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "WhetherHasChildrenUnder18",
+                    "field": "WhetherHasChildrenUnder18",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "EmploymentStatus",
+                    "field": "EmploymentStatus",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "HighestEducation",
+                    "field": "HighestEducation",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
                     "name": "Ethnicity",
                     "field": "Ethnicity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "ClientStatus",
+                    "field": "ClientStatus",
                     "joins": null
                 },
                 {
@@ -213,6 +444,35 @@
                             "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
                         ]
                     ]
+                }
+            ]
+        },
+        "Referrals": {
+            "Aggregations": [
+                {
+                    "name": "Count",
+                    "tables": [
+                        "CallReferrals"
+                    ],
+                    "default": true,
+                    "columns": [
+                        {
+                            "type": "agg",
+                            "agg": "count",
+                            "distinct": true,
+                            "field": "CallReportNum"
+                        }
+                    ]
+                }
+            ],
+            "Dimensions": [
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Referral",
+                    "field": "Referral",
+                    "joins": null,
+                    "exact_match": false
                 }
             ]
         }
