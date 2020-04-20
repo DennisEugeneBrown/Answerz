@@ -551,8 +551,12 @@ class ColumnEntityDecoder(EntityDecoderBase):
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
 
-            tables = lu["tables"]
-            field_name = lu["field"]
+            if lu:
+                tables = lu["tables"]
+                field_name = lu["field"]
+            else:
+                tables = []
+                field_name = ''
 
             # if lu['type'] == 'boolean':
             #     if 'default_value' in lu:
@@ -561,7 +565,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
             #         entity_value = 'YES'
 
             exact_match = True
-            if 'exact_match' in lu and lu['exact_match'] == False:
+            if lu and 'exact_match' in lu and lu['exact_match'] == False:
                 exact_match = False
 
             qb = QueryBlock(query_block.queryIntent)
@@ -572,33 +576,34 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 else:
                     # note: this is not yet tested and may break
                     qb.addTable(table[0], table[1])
+            if tables:
+                db_values = self.mapValues(tables[0], field_name, entity_value)
+                if (len(db_values) == 1):
 
-            db_values = self.mapValues(tables[0], field_name, entity_value)
-            if (len(db_values) == 1):
-
-                if exact_match:
-                    if ("." in field_name):  # already scoped
-                        qb.conditions.append(["eq", field_name, entity_value])
+                    if exact_match:
+                        if ("." in field_name):  # already scoped
+                            qb.conditions.append(
+                                ["eq", field_name, entity_value])
+                        else:
+                            qb.conditions.append(
+                                ["eq", tables[0] + "." + field_name, entity_value])
                     else:
-                        qb.conditions.append(
-                            ["eq", tables[0] + "." + field_name, entity_value])
+                        if ("." in field_name):  # already scoped
+                            qb.conditions.append(
+                                ["lk", field_name, '%'+entity_value+'%'])
+                        else:
+                            qb.conditions.append(
+                                ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
+
+                    if ("joins" in lu and lu["joins"]):
+                        for join in lu["joins"]:
+                            qb.addTable(join[0], join[1])
+
+                    return qb
+
                 else:
-                    if ("." in field_name):  # already scoped
-                        qb.conditions.append(
-                            ["lk", field_name, '%'+entity_value+'%'])
-                    else:
-                        qb.conditions.append(
-                            ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
-
-                if ("joins" in lu and lu["joins"]):
-                    for join in lu["joins"]:
-                        qb.addTable(join[0], join[1])
-
-                return qb
-
-            else:
-                print("Multiple value mapping not supported yet")
-                return None
+                    print("Multiple value mapping not supported yet")
+                    return None
 
             return qb
 
@@ -979,7 +984,7 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "how many referrals to mercy house")
+        "how many referrals to American Family Housing")
     print()
     print(result)
     # print('----------------')
