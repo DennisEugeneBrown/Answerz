@@ -2,12 +2,15 @@ import io
 import os
 import re
 import sys
+import json
 import types
 import pyodbc
 import pprint
 import requests
 import numpy as np
 import pandas as pd
+
+from pprint import pprint
 
 from datetime import datetime
 from termcolor import colored
@@ -34,11 +37,36 @@ class DataMapRepo:
     def __init__(self, data_map):
         self.DATA_MAP = data_map
 
+    def findGrouping(self, _element, _groupAction):
+        mapped_element = None
+        if not _element in self.DATA_MAP:
+            print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
+            return
+        else:
+            mapped_element = self.DATA_MAP[_element]
+
+        mapped_grouping = None
+        for group in mapped_element["Groupings"]:
+            if (group["name"] == _groupAction):
+                mapped_grouping = group
+                break
+
+        if not mapped_grouping:
+            for group in mapped_element["Groupings"]:
+                if not "default" in group:
+                    continue
+
+                if (group["default"] == True):
+                    mapped_grouping = group
+                    break
+
+        return mapped_element, mapped_grouping
+
     def findMapping(self, _element, _aggregation):
 
         mapped_element = None
         if not _element in self.DATA_MAP:
-            print("FATAL ERROR. Missing mapping for _DataElement = " + _element)
+            print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
             return
         else:
             mapped_element = self.DATA_MAP[_element]
@@ -83,6 +111,9 @@ class QueryBlock:
             self.joins.append((tableName, join))
         else:
             self.table = tableName
+
+    def addGroup(self, group_field):
+        self.groups.append(group_field)
 
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
@@ -264,6 +295,60 @@ class AggregationByDescriptionIntentDecoder:
         _element = self.findEntityByType(entities, "_DataElement")
         _aggregation = self.findEntityByType(entities, "_Aggregations")
 
+        _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _fieldName = self.findEntityByType(entities, "_FieldName")
+
+        data_map_repo = DataMapRepo(self.data_map)
+        _, mapped_aggregation = data_map_repo.findMapping(
+            _element, _aggregation)
+
+        _, mapped_grouping = data_map_repo.findGrouping(_element, _fieldName)
+
+        print(mapped_grouping)
+
+        qb = QueryBlock((_element, _aggregation))
+        for table in mapped_aggregation["tables"]:
+            if (type(table) == str):
+                qb.addTable(table)
+            else:
+                qb.addTable(table[0], table[1])
+
+        for col in mapped_aggregation["columns"]:
+            if ("type" in col and col["type"] == "agg"):
+                if (col["agg"] == "count"):
+                    if ("field" in col and col["field"]):
+                        if (col["distinct"]):
+                            qb.selects.append(["Count(distinct {})".format(
+                                col["field"]), "Count_" + col["field"]])
+                        else:
+                            qb.selects.append(
+                                ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                    else:
+                        qb.selects.append(["Count()", "Count"])
+
+        qb.groups.append((mapped_grouping['field'], mapped_grouping['name']))
+
+        # qb.addTable("CallLog")
+
+        return qb
+
+
+class BreakdownByIntentDecoder:
+    def __init__(self, data_map):
+        self.data_map = data_map
+
+    def findEntityByType(self, entities, type_name):
+        for e in entities:
+            if (e["type"] == type_name):
+                return e["resolution"]["values"][0]
+        return None
+
+    # We pass the entire list of entities to the decoder although we expect most to be ignored here
+    def decode(self, intent_name, entities):
+
+        _element = self.findEntityByType(entities, "_DataElement")
+        _aggregation = self.findEntityByType(entities, "_Aggregations")
+
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
@@ -300,7 +385,7 @@ class EntityDecoderBase:
         data_map_repo = DataMapRepo(data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
-
+        print('LOOKING FOR {}'.format(entity_name))
         for dim in mapped_element["Dimensions"]:
             if (dim["name"] == entity_name):
                 tables = mapped_aggregation["tables"]
@@ -312,7 +397,9 @@ class EntityDecoderBase:
 
         return None
 
-    def lookupTablesAndFieldByType(self, _element, _aggregation, entity_type):
+    def lookupTablesAndFieldByType(self, _element, _aggregation, entity_type, data_map):
+
+        self.data_map = data_map
 
         data_map_repo = DataMapRepo(self.data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
@@ -342,15 +429,22 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
     # Takes the entity to decode + a potential query_block to augment
     def decode(self, entity, query_block):
+        print(entity)
+        if 'resolution' in entity:
+            values = entity["resolution"]["values"]
+        else:
+            values = [entity]
 
-        values = entity["resolution"]["values"]
         if (len(values) == 1):
 
             #aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
             #elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
 
             entity_name = entity["type"]
-            entity_value = entity["resolution"]["values"][0]
+            if 'resolution' in entity:
+                entity_value = entity["resolution"]["values"][0]
+            else:
+                entity_value = entity['entity']
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -396,8 +490,8 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
 
 class DateRangeEntityDecoder(EntityDecoderBase):
-    def __init__(self):
-        pass
+    def __init__(self, data_map):
+        self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
     def decode(self, entity, query_block=None):
@@ -412,11 +506,11 @@ class DateRangeEntityDecoder(EntityDecoderBase):
                 entity_value = entity["resolution"]["values"][0]
 
                 lu = self.lookupTablesAndFieldByType(
-                    query_block.queryIntent[0], query_block.queryIntent[1], entity_type)
+                    query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
                 if not lu:
                     entity_type = "date"
                     lu = self.lookupTablesAndFieldByType(
-                        query_block.queryIntent[0], query_block.queryIntent[1], entity_type)
+                        query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
 
                 if (lu):
                     # TODO for compatability other than MSSQL need to lookup seperator
@@ -436,6 +530,47 @@ class DateRangeEntityDecoder(EntityDecoderBase):
         return None
 
 
+class DateEntityDecoder(EntityDecoderBase):
+    def __init__(self, data_map):
+        self.data_map = data_map
+
+    # Takes the entity to decode + a potential query_block to augment
+    def decode(self, entity, query_block=None):
+        values = entity["resolution"]["values"]
+
+        if (len(values) == 1):
+
+            value = values[0]
+            if (value["type"] == "date"):
+
+                entity_type = "datetime"
+                entity_value = entity["resolution"]["values"][0]
+
+                lu = self.lookupTablesAndFieldByType(
+                    query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+                if not lu:
+                    entity_type = "date"
+                    lu = self.lookupTablesAndFieldByType(
+                        query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+
+                if (lu):
+                    # TODO for compatability other than MSSQL need to lookup seperator
+                    field_name = lu["tables"][0] + "." + lu["field"]
+
+                    # Field name hard coded for now. This is wrong.
+                    qb = QueryBlock()
+                    qb.addTable(query_block.table)
+
+                    qb.conditions.append(
+                        ["gte", field_name, entity_value["value"]])
+                    qb.conditions.append(
+                        ["lte", field_name, entity_value["value"] + ' 23:59:59'])
+
+                    return qb
+
+        return None
+
+
 class LuisIntentProcessor:
 
     def __init__(self, data_map):
@@ -443,11 +578,16 @@ class LuisIntentProcessor:
         self.i_decoders = {}
         self.i_decoders["agg-elements-by-description"] = AggregationByDescriptionIntentDecoder(
             data_map)
+        self.i_decoders["breakdown-by"] = BreakdownByIntentDecoder(
+            data_map)
 
         # Entity Decoders
         self.e_decoder_default = ColumnEntityDecoder(data_map)
         self.e_decoders = {}
-        self.e_decoders["builtin.datetimeV2.daterange"] = DateRangeEntityDecoder()
+        self.e_decoders["builtin.datetimeV2.daterange"] = DateRangeEntityDecoder(
+            data_map)
+        self.e_decoders["builtin.datetimeV2.date"] = DateEntityDecoder(
+            data_map)
 
     def get_intent_decoder(self, intent_name):
 
@@ -468,7 +608,7 @@ class LuisIntentProcessor:
 
         return self.e_decoder_default
 
-    def prepare_query(self, q):
+    def prepare_query(self, q, prev_q):
         self.luis = q
 
         # First setup the context for the intent assigned by LUIS
@@ -487,7 +627,7 @@ class LuisIntentProcessor:
         entity_list = []
         for e in q["entities"]:
             entity_list.append(e)
-
+        print(entity_list)
         for e in entity_list:
             decoder = self.get_entity_decoder(e)
             if (decoder):
@@ -513,20 +653,22 @@ class QueryProcessor:
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
         result = msr.query(sql)
-
-        for row in result:
+        rows = {}
+        for ix, row in enumerate(result):
             row_dictionary = {}
             col_index = 0
-
+            # print(qb.getAllSelects())
             for col in qb.getAllSelects():
 
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
-        return row_dictionary, sql
+            rows[str(ix)] = row_dictionary
+        return rows, sql
 
     def generate_query(self, qb):
         qbr = QueryBlockRenderer()
         sql = qbr.render(qb)
+        print(sql)
         return sql
 
     def test(self):
@@ -555,6 +697,10 @@ class AnswerzProcessor():
         self.queryProcessor = QueryProcessor(db_config)
         self.luis_config = luis_config
         self.db_config = db_config
+        self.prev_query = None
+
+    def update_prev_query(self, query):
+        self.prev_query = query
 
     def interpret(self, text):
         staging = "true"
@@ -570,13 +716,24 @@ class AnswerzProcessor():
 
     def run_query(self, text):
         q = self.interpret(text)
-        pq = self.intentProcessor.prepare_query(q)
+        # pprint(q)
+        pq = self.intentProcessor.prepare_query(q, self.prev_query)
+        sql, result = self.queryProcessor.generate_and_run_query(pq)
+        self.update_prev_query(sql)
+        return sql, result
 
-        return self.queryProcessor.generate_and_run_query(pq)
 
-
-# if __name__ == '__main__':
-#     ap = AnswerzProcessor(data_map, db_config)
-#     result, sql = ap.run_query(
-#         "How many female callers from orange county by need")
-#     print(result)
+if __name__ == '__main__':
+    with open('config.json', 'r') as r:
+        config = json.loads(r.read())
+    ap = AnswerzProcessor(
+        config['DATAMAP'], config['DB'], config['LUIS'])
+    result, sql = ap.run_query(
+        "Count calls from spanish speakers by gender")
+    print(sql)
+    print(result)
+    # print()
+    # result, sql = ap.run_query(
+    #     "break it down by gender")
+    # print(sql)
+    # print(result)

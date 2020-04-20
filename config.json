@@ -35,6 +35,34 @@
             "Dimensions": [
                 {
                     "class": "field",
+                    "type": "string",
+                    "name": "builtin.geographyV2.city",
+                    "field": "CallerCity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "builtin.geographyV2.state",
+                    "field": "CallerState",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Ethnicity",
+                    "field": "Ethnicity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Language",
+                    "field": "Language",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "datetime",
                     "name": "Date",
                     "field": "Date",
@@ -64,6 +92,14 @@
                             "CallLog.CallReportNum=CallLogNeeds.CallLogId"
                         ]
                     ]
+                }
+            ],
+            "Groupings": [
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Gender",
+                    "field": "Gender"
                 }
             ]
         }
