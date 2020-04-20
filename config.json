@@ -5,7 +5,7 @@
         "luis_subscription_key": "c200500e4a404c91a027614273eac192"
     },
     "DB": {
-        "driver": "{SQL Server}",
+        "driver": "{ODBC Driver 17 for SQL Server}",
         "server": "mssql",
         "host": "answerz.database.windows.net",
         "port": 1433,
