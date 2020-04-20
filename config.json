@@ -35,37 +35,16 @@
             "Dimensions": [
                 {
                     "class": "field",
-                    "type": "string",
-                    "name": "builtin.geographyV2.city",
-                    "field": "CallerCity",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "builtin.geographyV2.state",
-                    "field": "CallerState",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "Ethnicity",
-                    "field": "Ethnicity",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "Language",
-                    "field": "Language",
-                    "joins": null
-                },
-                {
-                    "class": "field",
                     "type": "datetime",
                     "name": "Date",
                     "field": "Date",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "builtin.geographyV2.city",
+                    "field": "CallerCity",
                     "joins": null
                 },
                 {
@@ -78,8 +57,29 @@
                 {
                     "class": "field",
                     "type": "string",
+                    "name": "builtin.geographyV2.state",
+                    "field": "CallerState",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Language",
+                    "field": "Language",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
                     "name": "Gender",
                     "field": "Gender"
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Ethnicity",
+                    "field": "Ethnicity",
+                    "joins": null
                 },
                 {
                     "class": "field",
@@ -97,9 +97,63 @@
             "Groupings": [
                 {
                     "class": "field",
+                    "type": "datetime",
+                    "name": "Date",
+                    "field": "Date",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "builtin.geographyV2.city",
+                    "field": "CallerCity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "County",
+                    "field": "CallerCounty",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "builtin.geographyV2.state",
+                    "field": "CallerState",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Language",
+                    "field": "Language",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "string",
                     "name": "Gender",
                     "field": "Gender"
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Ethnicity",
+                    "field": "Ethnicity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "Need",
+                    "field": "CallLogNeeds.Need",
+                    "joins": [
+                        [
+                            "CallLogNeeds",
+                            "CallLog.CallReportNum=CallLogNeeds.CallLogId"
+                        ]
+                    ]
                 }
             ]
         }

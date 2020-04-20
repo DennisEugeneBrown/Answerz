@@ -29,6 +29,7 @@ class MSSQLReader:
 
     def query(self, query):
         cursor = self.connection.cursor()
+        print(query)
         cursor.execute(query)
         return cursor
 
@@ -171,6 +172,7 @@ class QueryBlockRenderer:
 
     def renderFrom(self, qb):
         sql = qb.table
+        print(qb.joins)
         if (len(qb.joins)):
             for join in qb.joins:
                 sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
@@ -183,6 +185,7 @@ class QueryBlockRenderer:
         # Handle the group selects
         for term in qb.groups:
             sql = sql + sep + term[0]
+            sep = ", "
 
         return sql
 
@@ -289,11 +292,13 @@ class AggregationByDescriptionIntentDecoder:
         return None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
-    def decode(self, intent_name, entities):
+    def decode(self, intent_name, entities, prev_q=None):
         # global DATA_MAP
 
         _element = self.findEntityByType(entities, "_DataElement")
         _aggregation = self.findEntityByType(entities, "_Aggregations")
+
+        _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
 
         _groupAction = self.findEntityByType(entities, "_GroupAction")
         _fieldName = self.findEntityByType(entities, "_FieldName")
@@ -302,9 +307,11 @@ class AggregationByDescriptionIntentDecoder:
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
-        _, mapped_grouping = data_map_repo.findGrouping(_element, _fieldName)
+        if _groupAction:
+            _, mapped_grouping = data_map_repo.findGrouping(
+                _element, _fieldName)
 
-        print(mapped_grouping)
+        # print(mapped_grouping)
 
         qb = QueryBlock((_element, _aggregation))
         for table in mapped_aggregation["tables"]:
@@ -326,7 +333,11 @@ class AggregationByDescriptionIntentDecoder:
                     else:
                         qb.selects.append(["Count()", "Count"])
 
-        qb.groups.append((mapped_grouping['field'], mapped_grouping['name']))
+        if _groupAction:
+            if mapped_grouping['joins']:
+                qb.joins.extend(mapped_grouping['joins'])
+            qb.groups.append(
+                (mapped_grouping['field'], mapped_grouping['name']))
 
         # qb.addTable("CallLog")
 
@@ -344,36 +355,30 @@ class BreakdownByIntentDecoder:
         return None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
-    def decode(self, intent_name, entities):
+    def decode(self, intent_name, entities, prev_q=None):
+        # global DATA_MAP
 
-        _element = self.findEntityByType(entities, "_DataElement")
-        _aggregation = self.findEntityByType(entities, "_Aggregations")
+        qb = prev_q
+        try:
+            _element = qb.queryIntent[0]  # TODO: Add and use a getter
+            _aggregation = qb.queryIntent[1]  # TODO: Add and use a getter
+        except:
+            print('ERROR. CANNOT FIND PREVIOUS QUERY TO BREAKDOWN.')
+            return QueryBlock()
+
+        _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _fieldName = self.findEntityByType(entities, "_FieldName")
 
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
-        qb = QueryBlock((_element, _aggregation))
-        for table in mapped_aggregation["tables"]:
-            if (type(table) == str):
-                qb.addTable(table)
-            else:
-                qb.addTable(table[0], table[1])
-
-        for col in mapped_aggregation["columns"]:
-            if ("type" in col and col["type"] == "agg"):
-                if (col["agg"] == "count"):
-                    if ("field" in col and col["field"]):
-                        if (col["distinct"]):
-                            qb.selects.append(["Count(distinct {})".format(
-                                col["field"]), "Count_" + col["field"]])
-                        else:
-                            qb.selects.append(
-                                ["Count({})".format(col["field"]), "Count_" + col["field"]])
-                    else:
-                        qb.selects.append(["Count()", "Count"])
-
-        # qb.addTable("CallLog")
+        # if _groupAction:
+        _, mapped_grouping = data_map_repo.findGrouping(
+            _element, _fieldName)
+        qb.joins.extend(mapped_grouping['joins'])
+        qb.groups.append(
+            (mapped_grouping['field'], mapped_grouping['name']))
 
         return qb
 
@@ -385,7 +390,7 @@ class EntityDecoderBase:
         data_map_repo = DataMapRepo(data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
-        print('LOOKING FOR {}'.format(entity_name))
+        # print('LOOKING FOR {}'.format(entity_name))
         for dim in mapped_element["Dimensions"]:
             if (dim["name"] == entity_name):
                 tables = mapped_aggregation["tables"]
@@ -429,7 +434,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
     # Takes the entity to decode + a potential query_block to augment
     def decode(self, entity, query_block):
-        print(entity)
+        # print(entity)
         if 'resolution' in entity:
             values = entity["resolution"]["values"]
         else:
@@ -622,12 +627,13 @@ class LuisIntentProcessor:
         # so this is not such a good midterm assumption
 
         # Build the initial query block
-        query = intent_decoder.decode(this_intent, q["entities"])
+        query = intent_decoder.decode(
+            this_intent, q["entities"], prev_q=prev_q)
 
         entity_list = []
         for e in q["entities"]:
             entity_list.append(e)
-        print(entity_list)
+        # print(entity_list)
         for e in entity_list:
             decoder = self.get_entity_decoder(e)
             if (decoder):
@@ -653,7 +659,7 @@ class QueryProcessor:
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
         result = msr.query(sql)
-        rows = {}
+        rows = []
         for ix, row in enumerate(result):
             row_dictionary = {}
             col_index = 0
@@ -662,8 +668,9 @@ class QueryProcessor:
 
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
-            rows[str(ix)] = row_dictionary
-        return rows, sql
+            rows.append(row_dictionary)
+        output = {'Output': rows}
+        return output, sql
 
     def generate_query(self, qb):
         qbr = QueryBlockRenderer()
@@ -718,9 +725,11 @@ class AnswerzProcessor():
         q = self.interpret(text)
         # pprint(q)
         pq = self.intentProcessor.prepare_query(q, self.prev_query)
-        sql, result = self.queryProcessor.generate_and_run_query(pq)
-        self.update_prev_query(sql)
-        return sql, result
+        print(type(pq))
+        self.update_prev_query(pq)
+        result, sql = self.queryProcessor.generate_and_run_query(pq)
+        print(sql)
+        return result, sql
 
 
 if __name__ == '__main__':
@@ -729,11 +738,9 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "Count calls from spanish speakers by gender")
-    print(sql)
+        "Count calls from spanish speakers")
     print(result)
-    # print()
-    # result, sql = ap.run_query(
-    #     "break it down by gender")
-    # print(sql)
-    # print(result)
+    print('----------------')
+    result, sql = ap.run_query(
+        "break it down by need")
+    print(result)
