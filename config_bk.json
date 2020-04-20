@@ -19,7 +19,7 @@
                 {
                     "name": "Count",
                     "tables": [
-                        "CallLog2"
+                        "CallLog"
                     ],
                     "default": true,
                     "columns": [
@@ -37,35 +37,7 @@
                     "class": "field",
                     "type": "datetime",
                     "name": "Date",
-                    "field": "CallDate",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "builtin.personName",
-                    "field": "PhoneWorker",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "Length",
-                    "field": "CallLength",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "ZipCode",
-                    "field": "ZipCode",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "PhoneWorker",
-                    "field": "PhoneWorker",
+                    "field": "Date",
                     "joins": null
                 },
                 {
@@ -73,14 +45,14 @@
                     "type": "string",
                     "name": "builtin.geographyV2.city",
                     "display_name": "City",
-                    "field": "City",
+                    "field": "CallerCity",
                     "joins": null
                 },
                 {
                     "class": "field",
                     "type": "string",
                     "name": "County",
-                    "field": "County",
+                    "field": "CallerCounty",
                     "joins": null
                 },
                 {
@@ -88,14 +60,7 @@
                     "type": "string",
                     "name": "builtin.geographyV2.state",
                     "display_name": "State",
-                    "field": "State",
-                    "joins": null
-                },
-                {
-                    "class": "field",
-                    "type": "string",
-                    "name": "ZipCode",
-                    "field": "ZipCode",
+                    "field": "CallerState",
                     "joins": null
                 },
                 {
@@ -123,16 +88,7 @@
                     "type": "boolean",
                     "name": "LogicalLabel",
                     "field": {
-                        "Vetran": "WhetherVeteran",
-                        "Veteran with children": "WhetherVetWithChildren",
-                        "Married": "WhetherMarried",
-                        "With place to stay": "WhetherSafePlaceToStay",
-                        "interested in calfresh": "WhetherInterestedInCalFresh",
-                        "interested in tax prep": "WhetherInterestedInTaxPrep",
-                        "combat veteran": "WhetherCombatVet",
-                        "has children under 18": "WhetherHasChildrenUnder18",
-                        "Domestic Violence": "WhetherDVCall",
-                        "LGBTQ": "WhetherLGBTQ"
+                        "Vetran": "WhetherVeteran"
                     },
                     "default_value": "Yes",
                     "joins": null
@@ -141,11 +97,11 @@
                     "class": "field",
                     "type": "string",
                     "name": "Need",
-                    "field": "CallLogNeeds2.TaxonomyName",
+                    "field": "CallLogNeeds.Need",
                     "joins": [
                         [
-                            "CallLogNeeds2",
-                            "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
+                            "CallLogNeeds",
+                            "CallLog.CallReportNum=CallLogNeeds.CallLogId"
                         ]
                     ]
                 }
@@ -155,30 +111,30 @@
                     "class": "field",
                     "type": "datetime",
                     "name": "Date",
-                    "field": "CallDate",
+                    "field": "Date",
                     "joins": null
                 },
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "City",
+                    "name": "builtin.geographyV2.city",
                     "display_name": "City",
-                    "field": "City",
+                    "field": "CallerCity",
                     "joins": null
                 },
                 {
                     "class": "field",
                     "type": "string",
                     "name": "County",
-                    "field": "County",
+                    "field": "CallerCounty",
                     "joins": null
                 },
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "State",
+                    "name": "builtin.geographyV2.state",
                     "display_name": "State",
-                    "field": "State",
+                    "field": "CallerState",
                     "joins": null
                 },
                 {
@@ -206,11 +162,11 @@
                     "class": "field",
                     "type": "string",
                     "name": "Need",
-                    "field": "CallLogNeeds2.TaxonomyName",
+                    "field": "CallLogNeeds.Need",
                     "joins": [
                         [
-                            "CallLogNeeds2",
-                            "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
+                            "CallLogNeeds",
+                            "CallLog.CallReportNum=CallLogNeeds.CallLogId"
                         ]
                     ]
                 }

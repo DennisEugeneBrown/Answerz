@@ -303,7 +303,15 @@ class AggregationByDescriptionIntentDecoder:
                 return e["resolution"]["values"][0]
         return None
 
+    def findFieldNames(self, entities):
+        fieldNames = []
+        for e in entities:
+            if (e["type"] == '_FieldName'):
+                fieldNames.append(e["resolution"]["values"][0])
+        return fieldNames
+
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
+
     def decode(self, intent_name, entities, prev_q=None):
         # global DATA_MAP
 
@@ -313,17 +321,17 @@ class AggregationByDescriptionIntentDecoder:
         _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
 
         _groupAction = self.findEntityByType(entities, "_GroupAction")
-        _fieldName = self.findEntityByType(entities, "_FieldName")
-
+        _fieldNames = self.findFieldNames(entities)
+        # print('field names:', _fieldNames)
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
         qb = QueryBlock((_element, _aggregation))
         if _groupAction:
-            if _fieldName:
+            if _fieldNames:
                 _, mapped_grouping = data_map_repo.findGrouping(
-                    _element, _fieldName)
+                    _element, _fieldNames[-1])
                 mapped_groupings = [mapped_grouping]
             else:
                 # mapped_groupings = data_map_repo.getAllGroupings(_element)
@@ -695,8 +703,12 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
                     qb.conditions.append(
                         ["gte", field_name, entity_value["start"]])
-                    qb.conditions.append(
-                        ["lt", field_name, entity_value["end"]])
+                    if "end" in entity_value:
+                        qb.conditions.append(
+                            ["lt", field_name, entity_value["end"]])
+                    else:
+                        qb.conditions.append(
+                            ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
 
                     return qb
 
@@ -803,9 +815,43 @@ class LuisIntentProcessor:
             this_intent, q["entities"], prev_q=prev_q)
 
         entity_list = []
+        print(q['entities'])
         for e in q["entities"]:
             entity_list.append(e)
-        # print(entity_list)
+
+        # pprint(entity_list)
+
+        county_exists = False
+        geography_exists = False
+        county = None
+        geography = None
+
+        for entity in entity_list:
+            if entity['type'] == 'County':
+                county_exists = True
+                county = entity
+                break
+
+        for entity in entity_list:
+            if 'geography' in entity['type']:
+                geography_exists = True
+                geography = entity
+                break
+
+        if county_exists and geography_exists and (county['resolution']['values'][0].lower() == geography['entity'].lower() or county['resolution']['values'][0].lower() in geography['entity'].lower() or geography['entity'].lower() in county['resolution']['values'][0].lower()):
+            county_keyword = False
+            for entity in entity_list:
+                if entity['entity'].lower() == 'county':
+                    county_keyword = True
+                    break
+
+            if county_keyword:
+                entity_list.remove(geography)
+            else:
+                entity_list.remove(county)
+
+        # pprint(entity_list)
+
         for e in entity_list:
             decoder = self.get_entity_decoder(e)
             if (decoder):
@@ -907,10 +953,10 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "Count calls from spanish speakers by need")
+        "how many callers from 92672")
     print()
     print(result)
-    print('----------------')
-    result, sql = ap.run_query(
-        "break it down by gender")
-    pprint(result)
+    # print('----------------')
+    # result, sql = ap.run_query(
+    #     "break it down by gender")
+    # pprint(result)
