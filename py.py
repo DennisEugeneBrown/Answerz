@@ -23,6 +23,7 @@ def my_form():
 @app.route('/', methods=['POST'])
 def my_form_post():
     text = request.form['text']
+    print(text)
     result, sql = ap.run_query(text)
     result = json2html.convert(json=result)
     return main_html.format(text) + '<br>' + result + '<br><br>' + sql

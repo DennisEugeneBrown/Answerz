@@ -38,6 +38,19 @@ class DataMapRepo:
     def __init__(self, data_map):
         self.DATA_MAP = data_map
 
+    def getAllGroupings(self, _element):
+        mapped_element = None
+        if not _element in self.DATA_MAP:
+            print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
+            return
+        else:
+            mapped_element = self.DATA_MAP[_element]
+
+        mapped_groupings = []
+        for group in mapped_element["Groupings"]:
+            mapped_groupings.append(group)
+        return mapped_groupings
+
     def findGrouping(self, _element, _groupAction):
         mapped_element = None
         if not _element in self.DATA_MAP:
@@ -172,7 +185,6 @@ class QueryBlockRenderer:
 
     def renderFrom(self, qb):
         sql = qb.table
-        print(qb.joins)
         if (len(qb.joins)):
             for join in qb.joins:
                 sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
@@ -298,6 +310,80 @@ class AggregationByDescriptionIntentDecoder:
         _element = self.findEntityByType(entities, "_DataElement")
         _aggregation = self.findEntityByType(entities, "_Aggregations")
 
+        _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
+
+        _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _fieldName = self.findEntityByType(entities, "_FieldName")
+
+        data_map_repo = DataMapRepo(self.data_map)
+        _, mapped_aggregation = data_map_repo.findMapping(
+            _element, _aggregation)
+
+        qb = QueryBlock((_element, _aggregation))
+        if _groupAction:
+            if _fieldName:
+                _, mapped_grouping = data_map_repo.findGrouping(
+                    _element, _fieldName)
+                mapped_groupings = [mapped_grouping]
+            else:
+                # mapped_groupings = data_map_repo.getAllGroupings(_element)
+                mapped_groupings = []
+            # print(mapped_groupings)
+
+        # print(mapped_grouping)
+
+        for table in mapped_aggregation["tables"]:
+            if (type(table) == str):
+                qb.addTable(table)
+            else:
+                qb.addTable(table[0], table[1])
+
+        for col in mapped_aggregation["columns"]:
+            if ("type" in col and col["type"] == "agg"):
+                if (col["agg"] == "count"):
+                    if ("field" in col and col["field"]):
+                        if (col["distinct"]):
+                            qb.selects.append(["Count(distinct {})".format(
+                                col["field"]), "Count_" + col["field"]])
+                        else:
+                            qb.selects.append(
+                                ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                    else:
+                        qb.selects.append(["Count()", "Count"])
+
+        if _groupAction:
+            # print('GROUPS:', qb.groups)
+            for mapped_grouping in mapped_groupings:
+                if mapped_grouping['joins']:
+                    qb.joins.extend(mapped_grouping['joins'])
+                if 'display_name' in mapped_grouping:
+                    qb.groups.append(
+                        (mapped_grouping['field'], mapped_grouping['display_name']))
+                else:
+                    qb.groups.append(
+                        (mapped_grouping['field'], mapped_grouping['name']))
+
+        # qb.addTable("CallLog")
+
+        return qb
+
+
+class AggregationByLogicalYesDecoder:
+    def __init__(self, data_map):
+        self.data_map = data_map
+
+    def findEntityByType(self, entities, type_name):
+        for e in entities:
+            if (e["type"] == type_name):
+                return e["resolution"]["values"][0]
+        return None
+
+    # We pass the entire list of entities to the decoder although we expect most to be ignored here
+    def decode(self, intent_name, entities, prev_q=None):
+        # global DATA_MAP
+
+        _element = self.findEntityByType(entities, "_DataElement")
+        _aggregation = self.findEntityByType(entities, "_Aggregations")
         _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
 
         _groupAction = self.findEntityByType(entities, "_GroupAction")
@@ -457,6 +543,87 @@ class ColumnEntityDecoder(EntityDecoderBase):
             tables = lu["tables"]
             field_name = lu["field"]
 
+            # if lu['type'] == 'boolean':
+            #     if 'default_value' in lu:
+            #         entity_value = lu['default_value']
+            #     else:
+            #         entity_value = 'YES'
+
+            qb = QueryBlock(query_block.queryIntent)
+
+            for table in tables:
+                if (type(table) == str):
+                    qb.addTable(table)
+                else:
+                    # note: this is not yet tested and may break
+                    qb.addTable(table[0], table[1])
+
+            db_values = self.mapValues(tables[0], field_name, entity_value)
+            if (len(db_values) == 1):
+
+                if ("." in field_name):  # already scoped
+                    qb.conditions.append(["eq", field_name, entity_value])
+                else:
+                    qb.conditions.append(
+                        ["eq", tables[0] + "." + field_name, entity_value])
+
+                if ("joins" in lu and lu["joins"]):
+                    for join in lu["joins"]:
+                        qb.addTable(join[0], join[1])
+
+                return qb
+
+            else:
+                print("Multiple value mapping not supported yet")
+                return None
+
+            return qb
+
+        else:
+            print("Duplicate value types unhandled")
+            print("Duplicate value types unhandled")
+
+        return None
+
+
+class LogicalLabelEntityDecoder(EntityDecoderBase):
+    def __init__(self, data_map):
+        self.data_map = data_map
+        pass
+
+    def mapValues(self, table, field_name, entity_value):
+        return [entity_value]
+
+    # Takes the entity to decode + a potential query_block to augment
+    def decode(self, entity, query_block):
+        # print(entity)
+        if 'resolution' in entity:
+            values = entity["resolution"]["values"]
+        else:
+            values = [entity]
+
+        if (len(values) == 1):
+
+            #aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
+            #elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
+
+            entity_name = entity["type"]
+            if 'resolution' in entity:
+                entity_value = entity["resolution"]["values"][0]
+            else:
+                entity_value = entity['entity']
+
+            lu = self.lookupTablesAndField(
+                query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
+
+            tables = lu["tables"]
+            field_name = lu['field'][entity_value]
+
+            if 'default_value' in lu:
+                entity_value = lu['default_value']
+            else:
+                entity_value = 'YES'
+
             qb = QueryBlock(query_block.queryIntent)
 
             for table in tables:
@@ -583,6 +750,8 @@ class LuisIntentProcessor:
         self.i_decoders = {}
         self.i_decoders["agg-elements-by-description"] = AggregationByDescriptionIntentDecoder(
             data_map)
+        self.i_decoders["agg-elements-by-logical-yes"] = AggregationByLogicalYesDecoder(
+            data_map)
         self.i_decoders["breakdown-by"] = BreakdownByIntentDecoder(
             data_map)
 
@@ -592,6 +761,8 @@ class LuisIntentProcessor:
         self.e_decoders["builtin.datetimeV2.daterange"] = DateRangeEntityDecoder(
             data_map)
         self.e_decoders["builtin.datetimeV2.date"] = DateEntityDecoder(
+            data_map)
+        self.e_decoders["LogicalLabel"] = LogicalLabelEntityDecoder(
             data_map)
 
     def get_intent_decoder(self, intent_name):
@@ -675,7 +846,6 @@ class QueryProcessor:
     def generate_query(self, qb):
         qbr = QueryBlockRenderer()
         sql = qbr.render(qb)
-        print(sql)
         return sql
 
     def test(self):
@@ -725,10 +895,8 @@ class AnswerzProcessor():
         q = self.interpret(text)
         # pprint(q)
         pq = self.intentProcessor.prepare_query(q, self.prev_query)
-        print(type(pq))
         self.update_prev_query(pq)
         result, sql = self.queryProcessor.generate_and_run_query(pq)
-        print(sql)
         return result, sql
 
 
@@ -738,9 +906,10 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "Count calls from spanish speakers")
+        "Count calls from spanish speakers by")
+    print()
     print(result)
-    print('----------------')
-    result, sql = ap.run_query(
-        "break it down by need")
-    print(result)
+    # print('----------------')
+    # result, sql = ap.run_query(
+    #     "break it down by need")
+    # pprint(result)

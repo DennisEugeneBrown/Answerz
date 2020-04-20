@@ -44,6 +44,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "builtin.geographyV2.city",
+                    "display_name": "City",
                     "field": "CallerCity",
                     "joins": null
                 },
@@ -58,6 +59,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "builtin.geographyV2.state",
+                    "display_name": "State",
                     "field": "CallerState",
                     "joins": null
                 },
@@ -79,6 +81,16 @@
                     "type": "string",
                     "name": "Ethnicity",
                     "field": "Ethnicity",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "boolean",
+                    "name": "LogicalLabel",
+                    "field": {
+                        "Vetran": "WhetherVeteran"
+                    },
+                    "default_value": "Yes",
                     "joins": null
                 },
                 {
@@ -106,6 +118,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "builtin.geographyV2.city",
+                    "display_name": "City",
                     "field": "CallerCity",
                     "joins": null
                 },
@@ -120,6 +133,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "builtin.geographyV2.state",
+                    "display_name": "State",
                     "field": "CallerState",
                     "joins": null
                 },
@@ -134,7 +148,8 @@
                     "class": "field",
                     "type": "string",
                     "name": "Gender",
-                    "field": "Gender"
+                    "field": "Gender",
+                    "joins": null
                 },
                 {
                     "class": "field",
