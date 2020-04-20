@@ -9,7 +9,7 @@ app.config.from_json('config.json')
 @app.route('/')
 def my_form():
     return '<form method="POST">\
-            <input name = "text" >\
+            <input name = "text" style="width: 600px">\
             <input type = "submit" >\
             </form >'
 
