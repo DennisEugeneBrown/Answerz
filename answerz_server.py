@@ -462,7 +462,8 @@ class BreakdownByIntentDecoder:
         # if _groupAction:
         _, mapped_grouping = data_map_repo.findGrouping(
             _element, _fieldName)
-        qb.joins.extend(mapped_grouping['joins'])
+        if mapped_grouping['joins']:
+            qb.joins.extend(mapped_grouping['joins'])
         qb.groups.append(
             (mapped_grouping['field'], mapped_grouping['name']))
 
@@ -906,10 +907,10 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "Count calls from spanish speakers by")
+        "Count calls from spanish speakers by need")
     print()
     print(result)
-    # print('----------------')
-    # result, sql = ap.run_query(
-    #     "break it down by need")
-    # pprint(result)
+    print('----------------')
+    result, sql = ap.run_query(
+        "break it down by gender")
+    pprint(result)
