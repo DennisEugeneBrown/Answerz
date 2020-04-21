@@ -985,7 +985,7 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "how many calls from 2018")
+        "how many referrals from mercy house")
     print()
     print(result)
     # print('----------------')
