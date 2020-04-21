@@ -538,7 +538,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
             else:
                 values = [entity['resolution']['value']]
         else:
-            values = [entity]
+            values = [entity['entity']]
 
         if (len(values) == 1):
 
@@ -547,6 +547,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
             entity_name = entity["type"]
             entity_value = values[0]
+            print(entity_value)
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -984,7 +985,7 @@ if __name__ == '__main__':
     ap = AnswerzProcessor(
         config['DATAMAP'], config['DB'], config['LUIS'])
     result, sql = ap.run_query(
-        "how many referrals to American Family Housing")
+        "how many calls from santa ana")
     print()
     print(result)
     # print('----------------')
