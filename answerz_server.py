@@ -319,12 +319,12 @@ class AggregationByDescriptionIntentDecoder:
 
         _element = self.findEntityByType(entities, "_DataElement")
         _aggregation = self.findEntityByType(entities, "_Aggregations")
-
         _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
-
         _groupAction = self.findEntityByType(entities, "_GroupAction")
+
         _fieldNames = self.findFieldNames(entities)
         # print('field names:', _fieldNames)
+
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
@@ -395,7 +395,6 @@ class AggregationByLogicalYesDecoder:
         _element = self.findEntityByType(entities, "_DataElement")
         _aggregation = self.findEntityByType(entities, "_Aggregations")
         _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
-
         _groupAction = self.findEntityByType(entities, "_GroupAction")
         _fieldName = self.findEntityByType(entities, "_FieldName")
 
@@ -870,7 +869,10 @@ class LuisIntentProcessor:
                 geography = entity
                 break
 
-        if county_exists and geography_exists and (county['resolution']['values'][0].lower() == geography['entity'].lower() or county['resolution']['values'][0].lower() in geography['entity'].lower() or geography['entity'].lower() in county['resolution']['values'][0].lower()):
+        if county_exists and geography_exists and\
+                (county['resolution']['values'][0].lower() == geography['entity'].lower() or
+                 county['resolution']['values'][0].lower() in geography['entity'].lower() or
+                 geography['entity'].lower() in county['resolution']['values'][0].lower()): # Differentiate between county and state/city
             county_keyword = False
             for entity in entity_list:
                 if entity['entity'].lower() == 'county':
