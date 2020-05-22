@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import csv
 import sys
 import json
 import types
@@ -269,11 +270,11 @@ class QueryTestBlocks():
     def simple_count_and_grouped_join(self):
         qb = QueryBlock()
         qb.addTable("CallLog")
-        #qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
+        # qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
         qb.addTable("CallLog")
         qb.addTable("CallLogNeeds",
                     "CallLog.CallReportNum=CallLogNeeds.CallLogId")
-        #qb.joins.append(["CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"])
+        # qb.joins.append(["CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"])
         qb.groups.append(["CallLogNeeds.Need", "Need"])
         return qb
 
@@ -541,8 +542,8 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
         if (len(values) == 1):
 
-            #aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
-            #elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
+            # aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
+            # elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
 
             entity_name = entity["type"]
             entity_value = values[0]
@@ -632,8 +633,8 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
 
         if (len(values) == 1):
 
-            #aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
-            #elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
+            # aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
+            # elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
 
             entity_name = entity["type"]
             if 'resolution' in entity:
@@ -872,7 +873,7 @@ class LuisIntentProcessor:
         if county_exists and geography_exists and\
                 (county['resolution']['values'][0].lower() == geography['entity'].lower() or
                  county['resolution']['values'][0].lower() in geography['entity'].lower() or
-                 geography['entity'].lower() in county['resolution']['values'][0].lower()): # Differentiate between county and state/city
+                 geography['entity'].lower() in county['resolution']['values'][0].lower()):  # Differentiate between county and state/city
             county_keyword = False
             for entity in entity_list:
                 if entity['entity'].lower() == 'county':
@@ -981,15 +982,47 @@ class AnswerzProcessor():
         return result, sql
 
 
+class CallsColumnTester:
+    def __init__(self, col_name, config):
+        self.col_name = col_name
+        msr = MSSQLReader(config['DB'])
+        msr.connect(msr.server)
+        results = msr.query(
+            'SELECT DISTINCT {} FROM dbo.CallLog3'.format(col_name))
+        self.values = [result[0] for result in results]
+
+        self.ap = AnswerzProcessor(
+            config['DATAMAP'], config['DB'], config['LUIS'])
+
+    def get_number_of_values(self):
+        return len(self.values)
+
+    def run_test(self, sample_size):
+        with open('{}_test_results.csv'.format(self.col_name), 'w', newline='') as w:
+            writer = csv.writer(w)
+            writer.writerow(['Value', 'Query', 'SQL', 'Result'])
+            for i in range(sample_size):
+                value = self.values[i]
+                query = 'How many calls from {}'.format(value)
+                _, sql = self.ap.run_query(query)
+                sql = ' '.join(sql.split())
+                result = 'Pass' if "WHERE CallLog3.{} = '{}'".format(
+                    self.col_name, value).lower() in sql.lower() else 'Fail'
+                writer.writerow([value, query, sql, result])
+
+
 if __name__ == '__main__':
     with open('config.json', 'r') as r:
         config = json.loads(r.read())
-    ap = AnswerzProcessor(
-        config['DATAMAP'], config['DB'], config['LUIS'])
-    result, sql = ap.run_query(
-        "how many referrals from mercy house")
-    print()
-    print(result)
+    tester = CallsColumnTester('city', config)
+    tester.run_test(20)
+
+    # ap = AnswerzProcessor(
+    #     config['DATAMAP'], config['DB'], config['LUIS'])
+    # result, sql = ap.run_query(
+    #     "how many referrals from mercy house")
+    # print()
+    # print(result)
     # print('----------------')
     # result, sql = ap.run_query(
     #     "break it down by gender")
