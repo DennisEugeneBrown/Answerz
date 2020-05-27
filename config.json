@@ -2,7 +2,7 @@
     "LUIS": {
         "luis_app_id": "ad7b56ef-a4c5-4538-a19a-6add68451f43",
         "luis_use_staging": true,
-        "luis_subscription_key": "c200500e4a404c91a027614273eac192"
+        "luis_subscription_key": "ad64fea81b8a439a94692f7b5473462f"
     },
     "DB": {
         "driver": "{ODBC Driver 17 for SQL Server}",
@@ -19,7 +19,7 @@
                 {
                     "name": "Count",
                     "tables": [
-                        "CallLog2"
+                        "CallLog3"
                     ],
                     "default": true,
                     "columns": [
@@ -160,14 +160,12 @@
                     "field": {
                         "Vetran": "WhetherVeteran",
                         "Veteran with children": "WhetherVetWithChildren",
-                        "Married": "WhetherMarried",
+                        "Married": "MaritalStatus",
                         "With place to stay": "WhetherSafePlaceToStay",
                         "interested in calfresh": "WhetherInterestedInCalFresh",
-                        "interested in tax prep": "WhetherInterestedInTaxPrep",
                         "combat veteran": "WhetherCombatVet",
-                        "has children under 18": "WhetherHasChildrenUnder18",
                         "Domestic Violence": "WhetherDVCall",
-                        "LGBTQ": "WhetherLGBTQ"
+                        "LGBTQ": "LGBTQ"
                     },
                     "default_value": "Yes",
                     "joins": null
@@ -180,7 +178,7 @@
                     "joins": [
                         [
                             "CallLogNeeds2",
-                            "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
+                            "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
                         ]
                     ]
                 }

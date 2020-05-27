@@ -547,7 +547,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
             entity_name = entity["type"]
             entity_value = values[0]
-            print(entity_value)
+            # print(entity_value)
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -831,9 +831,11 @@ class LuisIntentProcessor:
 
     def prepare_query(self, q, prev_q):
         self.luis = q
+        print(q)
 
         # First setup the context for the intent assigned by LUIS
         this_intent = q["topScoringIntent"]["intent"]
+
         intent_decoder = self.get_intent_decoder(this_intent)
         if (not intent_decoder):
             print("Unable to continue. Un-recognized intent: ", this_intent)
@@ -966,7 +968,8 @@ class AnswerzProcessor():
         luis_app_id = self.luis_config["luis_app_id"]
         luis_subscription_key = self.luis_config["luis_subscription_key"]
 
-        url = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
+        # url = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
+        url = "https://hmis.cognitiveservices.azure.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
             luis_app_id, staging, luis_subscription_key)
         r = requests.get(url=url + "&q=" + text)
         data = r.json()
@@ -997,25 +1000,39 @@ class CallsColumnTester:
     def get_number_of_values(self):
         return len(self.values)
 
-    def run_test(self, sample_size):
-        with open('{}_test_results.csv'.format(self.col_name), 'w', newline='') as w:
+    def run_test(self, sample_size=None):
+        with open('results\{}_test_results.csv'.format(self.col_name), 'w', newline='') as w:
             writer = csv.writer(w)
-            writer.writerow(['Value', 'Query', 'SQL', 'Result'])
+            writer.writerow(['Query', 'SQL', 'Value', 'Result'])
+            if not sample_size:
+                sample_size = len(self.values)
             for i in range(sample_size):
+                if i > len(self.values) - 1:
+                    break
                 value = self.values[i]
-                query = 'How many calls from {}'.format(value)
+                if not value:
+                    continue
+                query = 'How many calls where {} is {}'.format(
+                    self.col_name, value)
+                print(query)
+                sql = result = ''
                 _, sql = self.ap.run_query(query)
                 sql = ' '.join(sql.split())
-                result = 'Pass' if "WHERE CallLog3.{} = '{}'".format(
-                    self.col_name, value).lower() in sql.lower() else 'Fail'
-                writer.writerow([value, query, sql, result])
+                result = 'Pass' if re.search(r"SELECT Count\(distinct CallReportNum\) AS Count_CallReportNum FROM CallLog3 WHERE CallLog3\.{} = '.+'".format(
+                    self.col_name).lower(), sql.lower()) else 'Fail'
+                writer.writerow([query, sql, value, result])
 
 
 if __name__ == '__main__':
     with open('config.json', 'r') as r:
         config = json.loads(r.read())
-    tester = CallsColumnTester('city', config)
-    tester.run_test(20)
+    # cols = ['city', 'county', 'state', 'language', 'age', 'lgbtq', 'gender', 'sizeofhousehold', 'whetherdvcall', 'race', 'maritalstatus', 'whethersafeplacetostay',
+        # 'livingsituation', 'homelesstype', 'branchofservice', 'whetherinterestedincalfresh', 'whethercombatvet', 'agesinhousehold', 'numberofchildreninhousehold', 'grossannualincome']
+
+    cols = ['city']
+    for col in cols:
+        tester = CallsColumnTester(col, config)
+        tester.run_test(sample_size = 1)
 
     # ap = AnswerzProcessor(
     #     config['DATAMAP'], config['DB'], config['LUIS'])
