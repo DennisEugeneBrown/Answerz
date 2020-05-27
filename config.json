@@ -78,7 +78,7 @@
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "Race",
+                    "name": "Ethnicity",
                     "field": "Race",
                     "joins": null
                 },
@@ -149,8 +149,8 @@
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "Ethnicity",
-                    "field": "Ethnicity",
+                    "name": "Race",
+                    "field": "Race",
                     "joins": null
                 },
                 {
@@ -421,7 +421,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "Ethnicity",
-                    "field": "Ethnicity",
+                    "field": "Race",
                     "joins": null
                 },
                 {
