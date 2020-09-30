@@ -1,4 +1,5 @@
 import os
+import sys
 from json2html import *
 from flask import Flask, request
 from answerz_server import AnswerzProcessor
@@ -30,4 +31,7 @@ def my_form_post():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1')
+    if len(sys.argv) > 1:
+        app.run(host=sys.argv[1])
+    else:
+        app.run(host='127.0.0.1')
