@@ -2,7 +2,7 @@
     "LUIS": {
         "luis_app_id": "ad7b56ef-a4c5-4538-a19a-6add68451f43",
         "luis_use_staging": true,
-        "luis_subscription_key": "ad64fea81b8a439a94692f7b5473462f"
+        "luis_subscription_key": "64aee926bd984fb3a3819f34cb2fcff4"
     },
     "DB": {
         "driver": "{ODBC Driver 17 for SQL Server}",
@@ -78,7 +78,7 @@
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "Ethnicity",
+                    "name": "Race",
                     "field": "Race",
                     "joins": null
                 },
@@ -108,6 +108,13 @@
                     "type": "string",
                     "name": "builtin.geographyV2.city",
                     "display_name": "City",
+                    "field": "City",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "City",
                     "field": "City",
                     "joins": null
                 },
@@ -149,8 +156,8 @@
                 {
                     "class": "field",
                     "type": "string",
-                    "name": "Race",
-                    "field": "Race",
+                    "name": "Ethnicity",
+                    "field": "Ethnicity",
                     "joins": null
                 },
                 {
@@ -160,10 +167,12 @@
                     "field": {
                         "Vetran": "WhetherVeteran",
                         "Veteran with children": "WhetherVetWithChildren",
-                        "Married": "MaritalStatus",
+                        "Married": "WhetherMarried",
                         "With place to stay": "WhetherSafePlaceToStay",
                         "interested in calfresh": "WhetherInterestedInCalFresh",
+                        "interested in tax prep": "WhetherInterestedInTaxPrep",
                         "combat veteran": "WhetherCombatVet",
+                        "has children under 18": "WhetherHasChildrenUnder18",
                         "Domestic Violence": "WhetherDVCall",
                         "LGBTQ": "LGBTQ"
                     },
@@ -178,7 +187,7 @@
                     "joins": [
                         [
                             "CallLogNeeds2",
-                            "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+                            "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
                         ]
                     ]
                 }
@@ -274,7 +283,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "WhetherLGBTQ",
-                    "field": "WhetherLGBTQ",
+                    "field": "LGBTQ",
                     "joins": null
                 },
                 {
@@ -421,7 +430,7 @@
                     "class": "field",
                     "type": "string",
                     "name": "Ethnicity",
-                    "field": "Race",
+                    "field": "Ethnicity",
                     "joins": null
                 },
                 {

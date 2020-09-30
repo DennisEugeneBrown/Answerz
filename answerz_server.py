@@ -1,4 +1,5 @@
 import io
+import us
 import os
 import re
 import csv
@@ -8,11 +9,10 @@ import types
 import pyodbc
 import pprint
 import requests
+import traceback
 import numpy as np
 import pandas as pd
-
 from pprint import pprint
-
 from datetime import datetime
 from termcolor import colored
 
@@ -559,6 +559,21 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 tables = []
                 field_name = ''
 
+            if field_name == 'State':  # Using state abbreviations in queries instead of state names
+                state_name = entity_value.replace(
+                    ' State', '').replace(' state', '')
+                print('Looking up state: {}..'.format(state_name))
+                entity_value = us.states.lookup(state_name).abbr
+
+            # Using state abbreviations in queries instead of state names
+            if field_name == 'City' or field_name == 'builtin.geographyV2.city':
+                entity_value = entity_value.replace(
+                    ' City', '').replace(' city', '')
+
+            if field_name == 'County':
+                entity_value = entity_value.replace(
+                    ' County', '').replace(' county', '')
+
             # if lu['type'] == 'boolean':
             #     if 'default_value' in lu:
             #         entity_value = lu['default_value']
@@ -831,11 +846,9 @@ class LuisIntentProcessor:
 
     def prepare_query(self, q, prev_q):
         self.luis = q
-        print(q)
 
         # First setup the context for the intent assigned by LUIS
         this_intent = q["topScoringIntent"]["intent"]
-
         intent_decoder = self.get_intent_decoder(this_intent)
         if (not intent_decoder):
             print("Unable to continue. Un-recognized intent: ", this_intent)
@@ -853,45 +866,72 @@ class LuisIntentProcessor:
         for e in q["entities"]:
             entity_list.append(e)
 
-        # pprint(entity_list)
-
         county_exists = False
+        city_exists = False
         geography_exists = False
         county = None
+        city = None
         geography = None
 
-        for entity in entity_list:
-            if entity['type'] == 'County':
-                county_exists = True
-                county = entity
-                break
+        geography_entity_types = [
+            'builtin.geographyV2.state', 'County', 'City', 'builtin.geographyV2.city']
 
-        for entity in entity_list:
-            if 'geography' in entity['type']:
-                geography_exists = True
-                geography = entity
-                break
+        geography_entities_found = [
+            el for el in entity_list if el['type'] in geography_entity_types]
 
-        if county_exists and geography_exists and\
-                (county['resolution']['values'][0].lower() == geography['entity'].lower() or
-                 county['resolution']['values'][0].lower() in geography['entity'].lower() or
-                 geography['entity'].lower() in county['resolution']['values'][0].lower()):  # Differentiate between county and state/city
-            county_keyword = False
+        geography_entities_found = []
+        for type in geography_entity_types:
             for entity in entity_list:
-                if entity['entity'].lower() == 'county':
-                    county_keyword = True
-                    break
+                if entity['type'] == type:
+                    geography_entities_found.append(entity)
 
-            if county_keyword:
-                entity_list.remove(geography)
-            else:
-                entity_list.remove(county)
+        print('There are {} geography entities.'.format(
+            len(geography_entities_found)))
+        print(geography_entities_found)
+
+        if len(geography_entities_found) > 1:
+            for entity in geography_entities_found[1:]:
+                entity_list.remove(entity)
+
+        # for entity in entity_list:
+        #     if entity['type'] == 'County':
+        #         county_exists = True
+        #         county = entity
+        #         break
+
+        # for entity in entity_list:
+        #     if entity['type'] == 'City':
+        #         city_exists = True
+        #         city = entity
+        #         break
+
+        # for entity in entity_list:
+        #     if 'geography' in entity['type']:
+        #         geography_exists = True
+        #         geography = entity
+        #         break
+
+        # if county_exists and geography_exists and\
+        #         (county['resolution']['values'][0].lower() == geography['entity'].lower() or
+        #          county['resolution']['values'][0].lower() in geography['entity'].lower() or
+        #          geography['entity'].lower() in county['resolution']['values'][0].lower()):  # Differentiate between county and state/city
+        #     county_keyword = False
+        #     for entity in entity_list:
+        #         if entity['entity'].lower() == 'county':
+        #             county_keyword = True
+        #             break
+
+        #     if county_keyword:
+        #         entity_list.remove(geography)
+        #     else:
+        #         entity_list.remove(county)
 
         # pprint(entity_list)
 
         for e in entity_list:
             decoder = self.get_entity_decoder(e)
             if (decoder):
+                print('Decoding {}...'.format(e))
                 qb = decoder.decode(e, query)
 
                 query.merge(qb)
@@ -968,12 +1008,11 @@ class AnswerzProcessor():
         luis_app_id = self.luis_config["luis_app_id"]
         luis_subscription_key = self.luis_config["luis_subscription_key"]
 
-        # url = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
-        url = "https://hmis.cognitiveservices.azure.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
+        url = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
             luis_app_id, staging, luis_subscription_key)
         r = requests.get(url=url + "&q=" + text)
         data = r.json()
-
+        pprint(data)
         return data
 
     def run_query(self, text):
@@ -1000,39 +1039,25 @@ class CallsColumnTester:
     def get_number_of_values(self):
         return len(self.values)
 
-    def run_test(self, sample_size=None):
-        with open('results\{}_test_results.csv'.format(self.col_name), 'w', newline='') as w:
+    def run_test(self, sample_size):
+        with open('{}_test_results.csv'.format(self.col_name), 'w', newline='') as w:
             writer = csv.writer(w)
-            writer.writerow(['Query', 'SQL', 'Value', 'Result'])
-            if not sample_size:
-                sample_size = len(self.values)
+            writer.writerow(['Value', 'Query', 'SQL', 'Result'])
             for i in range(sample_size):
-                if i > len(self.values) - 1:
-                    break
                 value = self.values[i]
-                if not value:
-                    continue
-                query = 'How many calls where {} is {}'.format(
-                    self.col_name, value)
-                print(query)
-                sql = result = ''
+                query = 'How many calls from {}'.format(value)
                 _, sql = self.ap.run_query(query)
                 sql = ' '.join(sql.split())
-                result = 'Pass' if re.search(r"SELECT Count\(distinct CallReportNum\) AS Count_CallReportNum FROM CallLog3 WHERE CallLog3\.{} = '.+'".format(
-                    self.col_name).lower(), sql.lower()) else 'Fail'
-                writer.writerow([query, sql, value, result])
+                result = 'Pass' if "SELECT Count(distinct CallReportNum) AS Count_CallReportNum FROM CallLog3 WHERE CallLog3.{} = '{}'".format(
+                    self.col_name, value).lower() == sql.lower() else 'Fail'
+                writer.writerow([value, query, sql, result])
 
 
 if __name__ == '__main__':
     with open('config.json', 'r') as r:
         config = json.loads(r.read())
-    # cols = ['city', 'county', 'state', 'language', 'age', 'lgbtq', 'gender', 'sizeofhousehold', 'whetherdvcall', 'race', 'maritalstatus', 'whethersafeplacetostay',
-        # 'livingsituation', 'homelesstype', 'branchofservice', 'whetherinterestedincalfresh', 'whethercombatvet', 'agesinhousehold', 'numberofchildreninhousehold', 'grossannualincome']
-
-    cols = ['city']
-    for col in cols:
-        tester = CallsColumnTester(col, config)
-        tester.run_test(sample_size = 1)
+    tester = CallsColumnTester('city', config)
+    tester.run_test(30)
 
     # ap = AnswerzProcessor(
     #     config['DATAMAP'], config['DB'], config['LUIS'])
