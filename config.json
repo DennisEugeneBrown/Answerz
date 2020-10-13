@@ -169,6 +169,13 @@
                 },
                 {
                     "class": "field",
+                    "type": "string",
+                    "name": "HomelessType",
+                    "field": "HomelessType",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "boolean",
                     "name": "LogicalLabel",
                     "field": {
