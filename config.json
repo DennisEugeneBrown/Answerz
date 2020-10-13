@@ -85,6 +85,13 @@
                 {
                     "class": "field",
                     "type": "string",
+                    "name": "MaritalStatus",
+                    "field": "MaritalStatus",
+                    "joins": null
+                }
+                {
+                    "class": "field",
+                    "type": "string",
                     "name": "ZipCode",
                     "field": "ZipCode",
                     "joins": null
@@ -326,6 +333,13 @@
                     "type": "string",
                     "name": "Race",
                     "field": "Race",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "MaritalStatus",
+                    "field": "MaritalStatus",
                     "joins": null
                 },
                 {
