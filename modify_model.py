@@ -86,19 +86,40 @@ client = LUISAuthoringClient(
 #     app_id, versionId, sub_lists=items, name='Language')
 
 ###########################################################################################
-# Adding a new List Entity for VetDischargeStatus
+# # Adding a new List Entity for BranchOfService
 
-rows = cursor.execute(
-    "select distinct VetDischargeStatus from dbo.CallLog3 where VetDischargeStatus != '' and VetDischargeStatus != 'Declined to Answer' and VetDischargeStatus != 'Not Asked' and BranchOfService != 'unknown'")
+# rows = cursor.execute(
+#     "select distinct VetDischargeStatus from dbo.CallLog3 where VetDischargeStatus != '' and VetDischargeStatus != 'Declined to Answer' and VetDischargeStatus != 'Not Asked' and BranchOfService != 'unknown'")
 
-items = []
-for row in rows:
-    print(row[0])
-    items.append(WordListObject(
-        canonical_form=row[0], list=[row[0].strip() + ' Status']))
+# items = []
+# for row in rows:
+#     print(row[0])
+#     items.append(WordListObject(
+#         canonical_form=row[0], list=[row[0].strip() + ' Status']))
 
-print()
-print(len(items))
+# print()
+# print(len(items))
 
-client.model.add_closed_list(
-    app_id, versionId, sub_lists=items, name='VetDischargeStatus')
+# client.model.add_closed_list(
+#     app_id, versionId, sub_lists=items, name='VetDischargeStatus')
+
+###########################################################################################
+# Modifying the County Entity List to resolve conflicts between city and county
+
+# Grab the conflict counties
+cursor.execute(
+    "select distinct county from dbo.CallLog3 where city = county and city != '' and city != 'Unknown'")
+counties = [county[0] for county in cursor]
+
+# Find the IDs for their sublists under the County list entity and update them
+county_entity_id = '0cd83d65-8023-4bec-bf40-c840139ae175'
+county_entity = client.model.get_closed_list(
+    app_id, versionId, county_entity_id)
+
+for sublist in county_entity.sub_lists:
+    if sublist.canonical_form.replace(' County', '') in counties:
+        print(sublist.canonical_form)
+        client.model.update_sub_list(app_id, versionId, county_entity_id,
+                                     sublist.id, canonical_form=sublist.canonical_form, list=[sublist.canonical_form.replace(' County', '')])
+
+###########################################################################################

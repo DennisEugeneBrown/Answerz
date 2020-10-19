@@ -891,10 +891,6 @@ class LuisIntentProcessor:
         # Note: I am assuming all intents ARE Query requests, but we know for a fact there is AT LEAST a "None" intent as well as some NAVIGATION intents
         # so this is not such a good midterm assumption
 
-        # Build the initial query block
-        query = intent_decoder.decode(
-            this_intent, q["entities"], prev_q=prev_q)
-
         entity_list = []
         pprint(q['entities'])
         for e in q["entities"]:
@@ -922,10 +918,6 @@ class LuisIntentProcessor:
         print('There are {} geography entities.'.format(
             len(geography_entities_found)))
         print(geography_entities_found)
-
-        if len(geography_entities_found) > 1:
-            for entity in geography_entities_found[1:]:
-                entity_list.remove(entity)
 
         # for entity in entity_list:
         #     if entity['type'] == 'County':
@@ -962,18 +954,48 @@ class LuisIntentProcessor:
 
         # pprint(entity_list)
 
-        for e in entity_list:
-            decoder = self.get_entity_decoder(e)
-            if (decoder):
-                print('Decoding {}...'.format(e))
-                qb = decoder.decode(e, query)
+        queries = []
 
-                query.merge(qb)
+        if len(geography_entities_found) > 1:
+            # Build the initial query block
+            for entity in geography_entities_found:
+                query = intent_decoder.decode(
+                    this_intent, q["entities"], prev_q=prev_q)
 
-            elif (not e["type"].startswith("_")):
-                print("No decoder for Entity", e["type"])
+                # entity_list.remove(entity)
+                entity_list_ = [
+                    entity_ for entity_ in entity_list if entity_ not in geography_entities_found or entity_ == entity]
 
-        return query
+                for e in entity_list_:
+                    decoder = self.get_entity_decoder(e)
+                    if (decoder):
+                        print('Decoding {}...'.format(e))
+                        qb = decoder.decode(e, query)
+
+                        query.merge(qb)
+
+                    elif (not e["type"].startswith("_")):
+                        print("No decoder for Entity", e["type"])
+
+                queries.append(query)
+
+        else:
+            query = intent_decoder.decode(
+                this_intent, q["entities"], prev_q=prev_q)
+            for e in entity_list:
+                decoder = self.get_entity_decoder(e)
+                if (decoder):
+                    print('Decoding {}...'.format(e))
+                    qb = decoder.decode(e, query)
+
+                    query.merge(qb)
+
+                elif (not e["type"].startswith("_")):
+                    print("No decoder for Entity", e["type"])
+
+            queries.append(query)
+
+        return queries
 
 
 class QueryProcessor:
@@ -982,9 +1004,17 @@ class QueryProcessor:
 
     def generate_and_run_query(self, qb):
 
+        sql = self.generate_query(qb)
+        output = self.run_query(sql, qb.getAllSelects())
+
+        return output, sql
+
+    def generate_query(self, qb):
         qbr = QueryBlockRenderer()
         sql = qbr.render(qb)
+        return sql
 
+    def run_query(self, sql, headers):
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
         result = msr.query(sql)
@@ -992,19 +1022,12 @@ class QueryProcessor:
         for ix, row in enumerate(result):
             row_dictionary = {}
             col_index = 0
-            # print(qb.getAllSelects())
-            for col in qb.getAllSelects():
-
+            for col in headers:
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
             rows.append(row_dictionary)
         output = {'Output': rows}
-        return output, sql
-
-    def generate_query(self, qb):
-        qbr = QueryBlockRenderer()
-        sql = qbr.render(qb)
-        return sql
+        return output
 
     def test(self):
         # global mssql_server
@@ -1052,10 +1075,17 @@ class AnswerzProcessor():
     def run_query(self, text):
         q = self.interpret(text)
         # pprint(q)
-        pq = self.intentProcessor.prepare_query(q, self.prev_query)
-        self.update_prev_query(pq)
-        result, sql = self.queryProcessor.generate_and_run_query(pq)
-        return result, sql
+        pqs = self.intentProcessor.prepare_query(q, self.prev_query)
+        self.update_prev_query(pqs[0])  # TODO: fix bug here
+        results = []
+        for pq in pqs:
+            result, sql = self.queryProcessor.generate_and_run_query(pq)
+            results.append((result, sql))
+        return results
+
+    def run_sql_query(self, sql, headers):
+        result = self.queryProcessor.run_query(sql, headers)
+        return result
 
 
 class CallsColumnTester:
