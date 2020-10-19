@@ -183,6 +183,13 @@
                 },
                 {
                     "class": "field",
+                    "type": "string",
+                    "name": "EmploymentStatus",
+                    "field": "EmploymentStatus",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "boolean",
                     "name": "LogicalLabel",
                     "field": {
