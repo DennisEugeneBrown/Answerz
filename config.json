@@ -197,6 +197,13 @@
                 },
                 {
                     "class": "field",
+                    "type": "string",
+                    "name": "VetDischargeStatus",
+                    "field": "VetDischargeStatus",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "boolean",
                     "name": "LogicalLabel",
                     "field": {
