@@ -312,7 +312,16 @@
                     "name": "Age",
                     "field": "Age",
                     "joins": null,
-                    "sort_fields": [["Age_from", "ASC"], ["Age", "DESC"]]
+                    "sort_fields": [
+                        [
+                            "Age_from",
+                            "ASC"
+                        ],
+                        [
+                            "Age",
+                            "DESC"
+                        ]
+                    ]
                 },
                 {
                     "class": "field",
@@ -480,6 +489,13 @@
                     "type": "string",
                     "name": "ClientStatus",
                     "field": "ClientStatus",
+                    "joins": null
+                },
+                {
+                    "class": "field",
+                    "type": "string",
+                    "name": "GrossAnnualIncome",
+                    "field": "GrossAnnualIncome",
                     "joins": null
                 },
                 {
