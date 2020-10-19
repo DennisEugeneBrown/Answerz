@@ -60,12 +60,12 @@ class DataMapRepo:
         else:
             mapped_element = self.DATA_MAP[_element]
 
+        print('Group Action: ', _groupAction)
         mapped_grouping = None
         for group in mapped_element["Groupings"]:
             if (group["name"] == _groupAction):
                 mapped_grouping = group
                 break
-
         if not mapped_grouping:
             for group in mapped_element["Groupings"]:
                 if not "default" in group:
@@ -171,6 +171,10 @@ class QueryBlockRenderer:
         if (group_sql):
             sql = sql + "\nGROUP BY " + group_sql
 
+        order_sql = self.renderSorts(qb)
+        if (order_sql):
+            sql = sql + "\nORDER BY " + order_sql
+
         return sql
 
     def renderSelect(self, qb):
@@ -198,6 +202,22 @@ class QueryBlockRenderer:
         # Handle the group selects
         for term in qb.groups:
             sql = sql + sep + term[0]
+            sep = ", "
+
+        return sql
+
+    def renderSorts(self, qb):
+        sep = ""
+        sql = ""
+
+        # Handle the group selects
+        for term in qb.sorts:
+            if term[1] == 'ASC':
+                sql = sql + sep + \
+                    "case when ({value} is null or {value} like '') then 1 else 0 end, {value} ASC".format(
+                        value=term[0])
+            else:
+                sql = sql + sep + ' '.join(term)
             sep = ", "
 
         return sql
@@ -373,6 +393,13 @@ class AggregationByDescriptionIntentDecoder:
                 else:
                     qb.groups.append(
                         (mapped_grouping['field'], mapped_grouping['name']))
+                if 'sort_fields' in mapped_grouping:
+                    for sort_field in mapped_grouping['sort_fields']:
+                        qb.sorts.append(sort_field)
+                        if sort_field[0] != mapped_grouping['field']:
+                            qb.groups.append((sort_field[0], sort_field[0]))
+                else:
+                    qb.sorts.append((mapped_grouping['field'], 'ASC'))
 
         # qb.addTable("CallLog")
 
@@ -476,6 +503,13 @@ class BreakdownByIntentDecoder:
             qb.joins.extend(mapped_grouping['joins'])
         qb.groups.append(
             (mapped_grouping['field'], mapped_grouping['name']))
+        if 'sort_fields' in mapped_grouping:
+            for sort_field in mapped_grouping['sort_fields']:
+                qb.sorts.append(sort_field)
+                if sort_field[0] != mapped_grouping['field']:
+                    qb.groups.append((sort_field[0], sort_field[0]))
+        else:
+            qb.sorts.append((mapped_grouping['field'], 'ASC'))
 
         return qb
 

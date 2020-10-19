@@ -311,7 +311,8 @@
                     "type": "string",
                     "name": "Age",
                     "field": "Age",
-                    "joins": null
+                    "joins": null,
+                    "sort_fields": [["Age_from", "ASC"], ["Age", "DESC"]]
                 },
                 {
                     "class": "field",

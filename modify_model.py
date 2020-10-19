@@ -70,17 +70,35 @@ client = LUISAuthoringClient(
 ###########################################################################################
 # Adding a new List Entity for Language
 
+# rows = cursor.execute(
+#     "select distinct language from dbo.CallLog3 where language != ''")
+
+# items = []
+# for row in rows:
+#     print(row[0])
+#     items.append(WordListObject(
+#         canonical_form=row[0], list=[row[0].strip() + ' Language']))
+
+# print()
+# print(len(items))
+
+# client.model.add_closed_list(
+#     app_id, versionId, sub_lists=items, name='Language')
+
+###########################################################################################
+# Adding a new List Entity for VetDischargeStatus
+
 rows = cursor.execute(
-    "select distinct language from dbo.CallLog3 where language != ''")
+    "select distinct VetDischargeStatus from dbo.CallLog3 where VetDischargeStatus != '' and VetDischargeStatus != 'Declined to Answer' and VetDischargeStatus != 'Not Asked' and BranchOfService != 'unknown'")
 
 items = []
 for row in rows:
     print(row[0])
     items.append(WordListObject(
-        canonical_form=row[0], list=[row[0].strip() + ' Language']))
+        canonical_form=row[0], list=[row[0].strip() + ' Status']))
 
 print()
 print(len(items))
 
 client.model.add_closed_list(
-    app_id, versionId, sub_lists=items, name='Language')
+    app_id, versionId, sub_lists=items, name='VetDischargeStatus')
