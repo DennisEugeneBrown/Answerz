@@ -190,6 +190,13 @@
                 },
                 {
                     "class": "field",
+                    "type": "string",
+                    "name": "HighestEducation",
+                    "field": "HighestEducation",
+                    "joins": null
+                },
+                {
+                    "class": "field",
                     "type": "boolean",
                     "name": "LogicalLabel",
                     "field": {
