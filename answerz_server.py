@@ -24,7 +24,8 @@ class MSSQLReader:
 
     def connect(self, server):
         connection_string = 'Driver={};Server={};Database={};Uid={};Pwd={};Port={};'.format(
-            self.server["driver"], self.server["host"], self.server["database"], server["user"], server["password"], server["port"])
+            self.server["driver"], self.server["host"], self.server["database"], server["user"], server["password"],
+            server["port"])
         self.connection = pyodbc.connect(connection_string)
         return self.connection
 
@@ -214,8 +215,8 @@ class QueryBlockRenderer:
         for term in qb.sorts:
             if term[1] == 'ASC':
                 sql = sql + sep + \
-                    "case when ({value} is null or {value} like '') then 1 else 0 end, {value} ASC".format(
-                        value=term[0])
+                      "case when ({value} is null or {value} like '') then 1 else 0 end, {value} ASC".format(
+                          value=term[0])
             else:
                 sql = sql + sep + ' '.join(term)
             sep = ", "
@@ -599,7 +600,6 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 print('Looking up state: {}..'.format(state_name))
                 entity_value = us.states.lookup(state_name).abbr
 
-            # Using state abbreviations in queries instead of state names
             if field_name == 'City' or field_name == 'builtin.geographyV2.city':
                 entity_value = entity_value.replace(
                     ' City', '').replace(' city', '')
@@ -620,6 +620,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
             qb = QueryBlock(query_block.queryIntent)
 
+            print(tables)
             for table in tables:
                 if (type(table) == str):
                     qb.addTable(table)
@@ -640,10 +641,10 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     else:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
-                                ["lk", field_name, '%'+entity_value+'%'])
+                                ["lk", field_name, '%' + entity_value + '%'])
                         else:
                             qb.conditions.append(
-                                ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
+                                ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
 
                     if ("joins" in lu and lu["joins"]):
                         for join in lu["joins"]:
@@ -727,10 +728,10 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 else:
                     if ("." in field_name):  # already scoped
                         qb.conditions.append(
-                            ["lk", field_name, '%'+entity_value+'%'])
+                            ["lk", field_name, '%' + entity_value + '%'])
                     else:
                         qb.conditions.append(
-                            ["lk", tables[0] + "." + field_name, '%'+entity_value+'%'])
+                            ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
 
                 if ("joins" in lu and lu["joins"]):
                     for join in lu["joins"]:
@@ -954,11 +955,24 @@ class LuisIntentProcessor:
 
         # pprint(entity_list)
 
+        keep = None
+        if 'county' in q['query'].lower():
+            keep = ['county']
+        elif 'city' in q['query'].lower():
+            keep = ['city', 'builtin.geographyV2.city']
+        elif 'state' in q['query'].lower():
+            keep = ['builtin.geographyV2.state']
+
         queries = []
+
+        out = []
 
         if len(geography_entities_found) > 1:
             # Build the initial query block
             for entity in geography_entities_found:
+                if keep and entity['type'].lower() not in keep:
+                    continue
+
                 query = intent_decoder.decode(
                     this_intent, q["entities"], prev_q=prev_q)
 
@@ -978,10 +992,9 @@ class LuisIntentProcessor:
                         print("No decoder for Entity", e["type"])
 
                 queries.append(query)
-
         else:
             query = intent_decoder.decode(
-                this_intent, q["entities"], prev_q=prev_q)
+                this_intent, entity_list, prev_q=prev_q)
             for e in entity_list:
                 decoder = self.get_entity_decoder(e)
                 if (decoder):
