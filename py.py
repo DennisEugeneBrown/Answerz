@@ -50,4 +50,4 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         app.run(host=sys.argv[1])
     else:
-        app.run(host='127.0.0.1', port=5555)
+        app.run(host='127.0.0.1', port=5000)
