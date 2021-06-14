@@ -55,7 +55,7 @@ class DataMapRepo:
 
     def findGrouping(self, _element, _groupAction):
         mapped_element = None
-        if not _element in self.DATA_MAP:
+        if _element not in self.DATA_MAP:
             print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
             return
         else:
@@ -95,10 +95,10 @@ class DataMapRepo:
 
         if not mapped_aggregation:
             for agg in mapped_element["Aggregations"]:
-                if not "default" in agg:
+                if "default" not in agg:
                     continue
 
-                if (agg["default"] == True):
+                if agg["default"]:
                     mapped_aggregation = agg
                     break
 
@@ -184,7 +184,7 @@ class QueryBlockRenderer:
 
         # Handle the group selects
         for term in qb.getAllSelects():
-            sql = sql + sep + term[0] + " AS " + term[1]
+            sql = sql + sep + term[0] + " AS [" + term[1] + "]"
             sep = ", "
 
         return sql
@@ -322,10 +322,10 @@ class AggregationByDescriptionIntentDecoder:
         self.data_map = data_map
 
     def findEntityByType(self, entities, type_name):
-        for e in entities:
-            if (e["type"] == type_name):
-                return e["resolution"]["values"][0]
-        return None
+        for ix, e in enumerate(entities):
+            if e["type"] == type_name:
+                return ix, e["resolution"]["values"][0]
+        return -1, None
 
     def findFieldNames(self, entities):
         fieldNames = []
@@ -339,10 +339,10 @@ class AggregationByDescriptionIntentDecoder:
     def decode(self, intent_name, entities, prev_q=None):
         # global DATA_MAP
 
-        _element = self.findEntityByType(entities, "_DataElement")
-        _aggregation = self.findEntityByType(entities, "_Aggregations")
-        _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
-        _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _element_ix, _element = self.findEntityByType(entities, "_DataElement")
+        _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
 
         _fieldNames = self.findFieldNames(entities)
         # print('field names:', _fieldNames)
@@ -357,6 +357,11 @@ class AggregationByDescriptionIntentDecoder:
                 _, mapped_grouping = data_map_repo.findGrouping(
                     _element, _fieldNames[-1])
                 mapped_groupings = [mapped_grouping]
+            elif _logicalLabel:
+                _, mapped_grouping = data_map_repo.findGrouping(
+                    _element, _logicalLabel)
+                mapped_groupings = [mapped_grouping]
+                del entities[_logicalLabel_ix]
             else:
                 # mapped_groupings = data_map_repo.getAllGroupings(_element)
                 mapped_groupings = []
@@ -375,8 +380,8 @@ class AggregationByDescriptionIntentDecoder:
                 if (col["agg"] == "count"):
                     if ("field" in col and col["field"]):
                         if (col["distinct"]):
-                            qb.selects.append(["Count(distinct {})".format(
-                                col["field"]), "Count_" + col["field"]])
+                            qb.selects.append(["Count(distinct dbo.{}.{})".format(
+                                qb.table, col["field"]), "Count_" + col["field"]])
                         else:
                             qb.selects.append(
                                 ["Count({})".format(col["field"]), "Count_" + col["field"]])
@@ -404,7 +409,7 @@ class AggregationByDescriptionIntentDecoder:
 
         # qb.addTable("CallLog")
 
-        return qb
+        return entities, qb
 
 
 class AggregationByLogicalYesDecoder:
@@ -412,20 +417,20 @@ class AggregationByLogicalYesDecoder:
         self.data_map = data_map
 
     def findEntityByType(self, entities, type_name):
-        for e in entities:
-            if (e["type"] == type_name):
-                return e["resolution"]["values"][0]
-        return None
+        for ix, e in enumerate(entities):
+            if e["type"] == type_name:
+                return ix, e["resolution"]["values"][0]
+        return -1, None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
     def decode(self, intent_name, entities, prev_q=None):
         # global DATA_MAP
 
-        _element = self.findEntityByType(entities, "_DataElement")
-        _aggregation = self.findEntityByType(entities, "_Aggregations")
-        _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
-        _groupAction = self.findEntityByType(entities, "_GroupAction")
-        _fieldName = self.findEntityByType(entities, "_FieldName")
+        _element_ix, _element = self.findEntityByType(entities, "_DataElement")
+        _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
 
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
@@ -465,7 +470,7 @@ class AggregationByLogicalYesDecoder:
 
         # qb.addTable("CallLog")
 
-        return qb
+        return entities, qb
 
 
 class BreakdownByIntentDecoder:
@@ -473,10 +478,10 @@ class BreakdownByIntentDecoder:
         self.data_map = data_map
 
     def findEntityByType(self, entities, type_name):
-        for e in entities:
-            if (e["type"] == type_name):
-                return e["resolution"]["values"][0]
-        return None
+        for ix, e in enumerate(entities):
+            if e["type"] == type_name:
+                return ix, e["resolution"]["values"][0]
+        return -1, None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
     def decode(self, intent_name, entities, prev_q=None):
@@ -490,16 +495,25 @@ class BreakdownByIntentDecoder:
             print('ERROR. CANNOT FIND PREVIOUS QUERY TO BREAKDOWN.')
             return QueryBlock()
 
-        _groupAction = self.findEntityByType(entities, "_GroupAction")
-        _fieldName = self.findEntityByType(entities, "_FieldName")
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
 
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
         # if _groupAction:
-        _, mapped_grouping = data_map_repo.findGrouping(
-            _element, _fieldName)
+        if _fieldName:
+            _, mapped_grouping = data_map_repo.findGrouping(
+                _element, _fieldName)
+        elif _logicalLabel:
+            _, mapped_grouping = data_map_repo.findGrouping(
+                _element, _logicalLabel)
+            del entities[_logicalLabel_ix]
+        else:
+            raise Exception('Something went wrong.')
+
         if mapped_grouping['joins']:
             qb.joins.extend(mapped_grouping['joins'])
         qb.groups.append(
@@ -512,7 +526,7 @@ class BreakdownByIntentDecoder:
         else:
             qb.sorts.append((mapped_grouping['field'], 'ASC'))
 
-        return qb
+        return entities, qb
 
 
 class EntityDecoderBase:
@@ -590,21 +604,23 @@ class ColumnEntityDecoder(EntityDecoderBase):
             if lu:
                 tables = lu["tables"]
                 field_name = lu["field"]
+                display_name = lu["display_name"] if "display_name" in lu else ''
             else:
                 tables = []
                 field_name = ''
+                display_name = ''
 
-            if field_name == 'State':  # Using state abbreviations in queries instead of state names
+            if display_name == 'State':  # Using state abbreviations in queries instead of state names
                 state_name = entity_value.replace(
                     ' State', '').replace(' state', '')
                 print('Looking up state: {}..'.format(state_name))
                 entity_value = us.states.lookup(state_name).abbr
 
-            if field_name == 'City' or field_name == 'builtin.geographyV2.city':
+            if display_name == 'City' or field_name == 'builtin.geographyV2.city':
                 entity_value = entity_value.replace(
                     ' City', '').replace(' city', '')
 
-            if field_name == 'County':
+            if display_name == 'County':
                 entity_value = entity_value.replace(
                     ' County', '').replace(' county', '')
 
@@ -622,7 +638,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
             print(tables)
             for table in tables:
-                if (type(table) == str):
+                if type(table) == str:
                     qb.addTable(table)
                 else:
                     # note: this is not yet tested and may break
@@ -967,13 +983,33 @@ class LuisIntentProcessor:
 
         out = []
 
+        ix_to_ix = {}
+
+        to_remove = []
+
+        for ent_ix, entity in enumerate(entity_list):
+            start_index = entity['startIndex']
+            if start_index in ix_to_ix:
+                if entity_list[ix_to_ix[start_index]]['type'].startswith('_'):
+                    to_remove.append(ent_ix)
+                elif entity['type'].startswith('_'):
+                    to_remove.append(ix_to_ix[start_index])
+                    ix_to_ix[start_index] = ent_ix
+            else:
+                ix_to_ix[start_index] = ent_ix
+
+        for ix in reversed(sorted(to_remove)):
+            del entity_list[ix]
+
+        # ix_to_element[entity['startIndex']] =
+
         if len(geography_entities_found) > 1:
             # Build the initial query block
             for entity in geography_entities_found:
                 if keep and entity['type'].lower() not in keep:
                     continue
 
-                query = intent_decoder.decode(
+                entity_list, query = intent_decoder.decode(
                     this_intent, q["entities"], prev_q=prev_q)
 
                 # entity_list.remove(entity)
@@ -993,8 +1029,10 @@ class LuisIntentProcessor:
 
                 queries.append(query)
         else:
-            query = intent_decoder.decode(
+
+            entity_list, query = intent_decoder.decode(
                 this_intent, entity_list, prev_q=prev_q)
+
             for e in entity_list:
                 decoder = self.get_entity_decoder(e)
                 if (decoder):
