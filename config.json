@@ -56,23 +56,16 @@
         },
         {
           "class": "field",
-          "type": "string",
-          "name": "builtin.currency",
-          "field": "AnnualIncome",
+          "type": "int",
+          "name": "GrossAnnualIncome",
+          "field": "GrossAnnualIncome",
           "joins": null
         },
         {
           "class": "field",
           "type": "int",
-          "name": "builtin.age",
+          "name": "age",
           "field": "age",
-          "joins": null
-        },
-        {
-          "class": "field",
-          "type": "int",
-          "name": "builtin.number",
-          "field": "CallLength",
           "joins": null
         },
         {
@@ -195,6 +188,20 @@
           "type": "string",
           "name": "VetDischargeStatus",
           "field": "VetDischargeStatus",
+          "joins": null
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "SizeOfHousehold",
+          "field": "SizeOfHousehold",
+          "joins": null
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "YearsServed",
+          "field": "YearsServed",
           "joins": null
         },
         {

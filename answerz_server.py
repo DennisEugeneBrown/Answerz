@@ -114,6 +114,7 @@ class QueryBlock:
         self.conditions = []
         self.groups = []
         self.sorts = []
+        self.comparators = []
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -154,6 +155,7 @@ class QueryBlock:
         self.conditions.extend(qb_other.conditions)
         self.groups.extend(qb_other.groups)
         self.sorts.extend(qb_other.sorts)
+        self.comparators.extend(qb_other.comparators)
         return True
 
 
@@ -343,15 +345,39 @@ class AggregationByDescriptionIntentDecoder:
         _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
+        _comparator_ix, _comparator = self.findEntityByType(entities, "_Comparator")
 
         _fieldNames = self.findFieldNames(entities)
-        # print('field names:', _fieldNames)
 
         data_map_repo = DataMapRepo(self.data_map)
-        _, mapped_aggregation = data_map_repo.findMapping(
+        mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
+        update_number = None
+        for field_name in _fieldNames:
+            for dim in mapped_element["Dimensions"]:
+                if dim["name"].lower() == field_name.lower() and dim['type'] == 'int':
+                    update_number = dim["name"]
+
+        if update_number:
+            for ix, entity in enumerate(entities):
+                if entity['type'] == 'builtin.number':
+                    entities[ix]['type'] = update_number
+
+        # print('field names:', _fieldNames)
+
         qb = QueryBlock((_element, _aggregation))
+
+        comparators_mapping = {
+            '<': 'lt',
+            '>': 'gt',
+            '<=': 'lte',
+            '>=': 'gte'
+        }
+
+        if _comparator:
+            qb.comparators.append(comparators_mapping[_comparator])
+
         if _groupAction:
             if _fieldNames:
                 _, mapped_grouping = data_map_repo.findGrouping(
@@ -579,7 +605,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block):
+    def decode(self, entity, query_block, comparators=None):
         # print(entity)
         if 'resolution' in entity:
             if 'values' in entity['resolution']:
@@ -650,10 +676,10 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     if exact_match:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
-                                ["eq", field_name, entity_value])
+                                [(comparators[0] if comparators else "eq"), field_name, entity_value])
                         else:
                             qb.conditions.append(
-                                ["eq", tables[0] + "." + field_name, entity_value])
+                                [(comparators[0] if comparators else "eq"), tables[0] + "." + field_name, entity_value])
                     else:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
@@ -690,7 +716,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block):
+    def decode(self, entity, query_block, comparators=None):
         # print(entity)
         if 'resolution' in entity:
             values = entity["resolution"]["values"]
@@ -773,7 +799,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None):
+    def decode(self, entity, query_block=None, comparators=None):
         values = entity["resolution"]["values"]
 
         if (len(values) == 1):
@@ -818,7 +844,7 @@ class DateEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None):
+    def decode(self, entity, query_block=None, comparators=None):
         values = entity["resolution"]["values"]
 
         if (len(values) == 1):
@@ -1020,7 +1046,8 @@ class LuisIntentProcessor:
                     decoder = self.get_entity_decoder(e)
                     if (decoder):
                         print('Decoding {}...'.format(e))
-                        qb = decoder.decode(e, query)
+                        if query.comparators:
+                            qb = decoder.decode(e, query, comparators=query.comparators)
 
                         query.merge(qb)
 
@@ -1037,7 +1064,10 @@ class LuisIntentProcessor:
                 decoder = self.get_entity_decoder(e)
                 if (decoder):
                     print('Decoding {}...'.format(e))
-                    qb = decoder.decode(e, query)
+                    if query.comparators:
+                        qb = decoder.decode(e, query, comparators=query.comparators)
+                    else:
+                        qb = decoder.decode(e, query)
 
                     query.merge(qb)
 
