@@ -49,8 +49,8 @@
         },
         {
           "class": "field",
-          "type": "string",
-          "name": "Length",
+          "type": "int",
+          "name": "CallLength",
           "field": "CallLength",
           "joins": null
         },
