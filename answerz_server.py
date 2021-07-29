@@ -1048,6 +1048,8 @@ class LuisIntentProcessor:
                         print('Decoding {}...'.format(e))
                         if query.comparators:
                             qb = decoder.decode(e, query, comparators=query.comparators)
+                        else:
+                            qb = decoder.decode(e, query)
 
                         query.merge(qb)
 
