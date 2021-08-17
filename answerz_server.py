@@ -1,4 +1,5 @@
 import io
+
 import us
 import os
 import re
@@ -15,6 +16,7 @@ import pandas as pd
 from pprint import pprint
 from datetime import datetime
 from termcolor import colored
+from collections import defaultdict
 
 
 class MSSQLReader:
@@ -82,8 +84,9 @@ class DataMapRepo:
 
         mapped_element = None
         if not _element in self.DATA_MAP:
-            print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
-            return
+            print("FATAL ERROR. Missing mapping for _DataElement = ", _element, "... Using Calls.")
+            # return
+            mapped_element = self.DATA_MAP['Calls']
         else:
             mapped_element = self.DATA_MAP[_element]
 
@@ -112,9 +115,12 @@ class QueryBlock:
         self.selects = []
         self.joins = []
         self.conditions = []
+        self.count_conditions = []
         self.groups = []
         self.sorts = []
         self.comparators = []
+        self.is_compare = False
+        self.aggregation = None
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -151,11 +157,14 @@ class QueryBlock:
 
         # This is naive for now
         self.selects.extend(qb_other.selects)
-        self.joins.extend(qb_other.joins)
+        self.joins.extend(tuple(qb_other.joins))
         self.conditions.extend(qb_other.conditions)
+        self.count_conditions.extend(qb_other.count_conditions)
         self.groups.extend(qb_other.groups)
         self.sorts.extend(qb_other.sorts)
         self.comparators.extend(qb_other.comparators)
+        self.is_compare = (self.is_compare or qb_other.is_compare)
+        self.aggregation = qb_other.aggregation if qb_other.aggregation else self.aggregation
         return True
 
 
@@ -163,6 +172,8 @@ class QueryBlock:
 class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
+        if qb.count_conditions:
+            qb.selects = self.processCountConditions(qb, agg=qb.queryIntent[1].upper())
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
@@ -194,7 +205,7 @@ class QueryBlockRenderer:
     def renderFrom(self, qb):
         sql = qb.table
         if (len(qb.joins)):
-            for join in qb.joins:
+            for join in set(qb.joins):
                 sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
         return sql
 
@@ -260,6 +271,48 @@ class QueryBlockRenderer:
 
         return sql
 
+    def processCountConditions(self, qb, agg='COUNT'):
+        selects = []
+
+        def encodeSelect(lhs, rhs, agg, encoded_op):
+            if agg.lower() == 'avg':
+                field = "CAST(dbo.{}.{} AS {})".format(qb.table, 'CallLength', 'INT')
+            else:
+                field = 1
+
+            selects.append(["{agg}(IIF({lhs} {encoded_op} '{rhs}', {field}, NULL))".format(lhs=lhs, rhs=rhs, agg=agg,
+                                                                                           encoded_op=encoded_op,
+                                                                                           field=field),
+                            '{agg}_{rhs}'.format(agg=agg, rhs=rhs)])
+
+        def encodeCondition(cond, agg):
+            op, lhs, rhs = cond
+
+            if (op == "eq"):
+                encodeSelect(lhs, rhs, agg, " = ")
+            if (op == "lk"):
+                encodeSelect(lhs, rhs, agg, " like ")
+            if (op == "lt"):
+                encodeSelect(lhs, rhs, agg, " < ")
+            if (op == "lte"):
+                encodeSelect(lhs, rhs, agg, " <= ")
+            if (op == "gt"):
+                encodeSelect(lhs, rhs, agg, " > ")
+            if (op == "gte"):
+                encodeSelect(lhs, rhs, agg, " >= ")
+
+        other_selects = set()
+        for term in qb.conditions:
+            other_selects.add(tuple(term))
+        for term in other_selects:
+            selects.append(["'" + term[2] + "'", term[1]])
+
+        # Handle the group selects
+        for term in qb.count_conditions:
+            encodeCondition(term, agg)
+
+        return selects
+
 
 class QueryTestBlocks():
     # This is defined as a class level function not an instance level function. its a way to manage globals
@@ -285,8 +338,7 @@ class QueryTestBlocks():
         qb = QueryBlock()
         qb.addTable("CallLog")
         qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
-        qb.joins.append(
-            ["CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"])
+        qb.joins.append(("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
         return qb
 
     # This is defined as a class level function not an instance level function. its a way to manage globals
@@ -297,7 +349,7 @@ class QueryTestBlocks():
         qb.addTable("CallLog")
         qb.addTable("CallLogNeeds",
                     "CallLog.CallReportNum=CallLogNeeds.CallLogId")
-        # qb.joins.append(["CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"])
+        # qb.joins.append(("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
         qb.groups.append(["CallLogNeeds.Need", "Need"])
         return qb
 
@@ -309,7 +361,7 @@ class QueryTestBlocks():
         qb2 = QueryBlock()
         qb2.table = "CallLog"
         qb2.joins.append(
-            ["CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"])
+            ("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
         qb3 = QueryBlock()
         qb3.groups.append(["CallLogNeeds.Need", "Need"])
 
@@ -378,19 +430,24 @@ class AggregationByDescriptionIntentDecoder:
         if _comparator:
             qb.comparators.append(comparators_mapping[_comparator])
 
+        mapped_groupings = []
         if _groupAction:
-            if _fieldNames:
-                _, mapped_grouping = data_map_repo.findGrouping(
-                    _element, _fieldNames[-1])
-                mapped_groupings = [mapped_grouping]
-            elif _logicalLabel:
-                _, mapped_grouping = data_map_repo.findGrouping(
-                    _element, _logicalLabel)
-                mapped_groupings = [mapped_grouping]
-                del entities[_logicalLabel_ix]
-            else:
-                # mapped_groupings = data_map_repo.getAllGroupings(_element)
-                mapped_groupings = []
+            if _groupAction in ['group by', 'breakdown by']:
+                if _fieldNames:
+                    _, mapped_grouping = data_map_repo.findGrouping(
+                        _element, _fieldNames[-1])
+                    mapped_groupings = [mapped_grouping]
+                elif _logicalLabel:
+                    _, mapped_grouping = data_map_repo.findGrouping(
+                        _element, _logicalLabel)
+                    mapped_groupings = [mapped_grouping]
+                    del entities[_logicalLabel_ix]
+                else:
+                    # mapped_groupings = data_map_repo.getAllGroupings(_element)
+                    pass
+            elif _groupAction.lower() == 'compare':
+                qb.is_compare = True
+
             # print(mapped_groupings)
 
         # print(mapped_grouping)
@@ -413,26 +470,35 @@ class AggregationByDescriptionIntentDecoder:
                                 ["Count({})".format(col["field"]), "Count_" + col["field"]])
                     else:
                         qb.selects.append(["Count()", "Count"])
+                elif (col['agg'] == 'avg'):
+                    if "field" in col and col["field"]:
+                        if 'cast' in col and col['cast']:
+                            field = "CAST({}dbo.{}.{} AS {})".format('distinct ' if col['distinct'] else '', qb.table,
+                                                                     col["field"], col['cast'])
+                        else:
+                            field = "{}dbo.{}.{}".format('distinct ' if col['distinct'] else '', qb.table, col["field"])
+
+                        qb.selects.append(["Avg({})".format(field), "Avg_" + col['field']])
 
         if _groupAction:
             # print('GROUPS:', qb.groups)
-            for mapped_grouping in mapped_groupings:
-                if mapped_grouping['joins']:
-                    qb.joins.extend(mapped_grouping['joins'])
-                if 'display_name' in mapped_grouping:
-                    qb.groups.append(
-                        (mapped_grouping['field'], mapped_grouping['display_name']))
-                else:
-                    qb.groups.append(
-                        (mapped_grouping['field'], mapped_grouping['name']))
-                if 'sort_fields' in mapped_grouping:
-                    for sort_field in mapped_grouping['sort_fields']:
-                        qb.sorts.append(sort_field)
-                        if sort_field[0] != mapped_grouping['field']:
-                            qb.groups.append((sort_field[0], sort_field[0]))
-                else:
-                    qb.sorts.append((mapped_grouping['field'], 'ASC'))
-
+            if _groupAction in ['group by', 'breakdown by']:
+                for mapped_grouping in mapped_groupings:
+                    if mapped_grouping['joins']:
+                        qb.joins.extend(tuple(mapped_grouping['joins']))
+                    if 'display_name' in mapped_grouping:
+                        qb.groups.append(
+                            (mapped_grouping['field'], mapped_grouping['display_name']))
+                    else:
+                        qb.groups.append(
+                            (mapped_grouping['field'], mapped_grouping['name']))
+                    if 'sort_fields' in mapped_grouping:
+                        for sort_field in mapped_grouping['sort_fields']:
+                            qb.sorts.append(sort_field)
+                            if sort_field[0] != mapped_grouping['field']:
+                                qb.groups.append((sort_field[0], sort_field[0]))
+                    else:
+                        qb.sorts.append((mapped_grouping['field'], 'ASC'))
         # qb.addTable("CallLog")
 
         return entities, qb
@@ -466,8 +532,6 @@ class AggregationByLogicalYesDecoder:
             _, mapped_grouping = data_map_repo.findGrouping(
                 _element, _fieldName)
 
-        # print(mapped_grouping)
-
         qb = QueryBlock((_element, _aggregation))
         for table in mapped_aggregation["tables"]:
             if (type(table) == str):
@@ -490,7 +554,7 @@ class AggregationByLogicalYesDecoder:
 
         if _groupAction:
             if mapped_grouping['joins']:
-                qb.joins.extend(mapped_grouping['joins'])
+                qb.joins.extend(tuple(mapped_grouping['joins']))
             qb.groups.append(
                 (mapped_grouping['field'], mapped_grouping['name']))
 
@@ -541,7 +605,7 @@ class BreakdownByIntentDecoder:
             raise Exception('Something went wrong.')
 
         if mapped_grouping['joins']:
-            qb.joins.extend(mapped_grouping['joins'])
+            qb.joins.extend(tuple(mapped_grouping['joins']))
         qb.groups.append(
             (mapped_grouping['field'], mapped_grouping['name']))
         if 'sort_fields' in mapped_grouping:
@@ -1056,6 +1120,18 @@ class LuisIntentProcessor:
                     elif (not e["type"].startswith("_")):
                         print("No decoder for Entity", e["type"])
 
+                if query.is_compare:
+                    column_counter = defaultdict(int)
+                    duplicated_value = None
+                    for cond in query.conditions:
+                        column_counter[cond[1]] += 1
+                        if column_counter[cond[1]] > 1:
+                            duplicated_value = cond[1]
+                            break
+                    conditions = query.conditions
+                    query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
+                    query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+
                 queries.append(query)
         else:
 
@@ -1075,6 +1151,18 @@ class LuisIntentProcessor:
 
                 elif (not e["type"].startswith("_")):
                     print("No decoder for Entity", e["type"])
+
+            if query.is_compare:
+                column_counter = defaultdict(int)
+                duplicated_value = None
+                for cond in query.conditions:
+                    column_counter[cond[1]] += 1
+                    if column_counter[cond[1]] > 1:
+                        duplicated_value = cond[1]
+                        break
+                conditions = query.conditions
+                query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
+                query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
 
             queries.append(query)
 

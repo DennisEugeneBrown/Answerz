@@ -30,6 +30,22 @@
               "field": "CallReportNum"
             }
           ]
+        },
+        {
+          "name": "Avg",
+          "tables": [
+            "CallLog3"
+          ],
+          "default": true,
+          "columns": [
+            {
+              "type": "agg",
+              "agg": "avg",
+              "distinct": false,
+              "field": "CallLength",
+              "cast": "INT"
+            }
+          ]
         }
       ],
       "Dimensions": [
