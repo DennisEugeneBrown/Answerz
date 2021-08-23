@@ -4,7 +4,7 @@ from json2html import *
 from flask import Flask, request
 from answerz_server import AnswerzProcessor
 
-app = Flask(__name__)
+app = Flask(__name__, instance_path="/home/yuzo-san/IdeaProjects/Answerz/instance")
 app.config.from_json('config.json')
 
 ap = AnswerzProcessor(
@@ -50,4 +50,4 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         app.run(host=sys.argv[1])
     else:
-        app.run(host='127.0.0.1', port=5000)
+        app.run(host='127.0.0.1', port=5555)
