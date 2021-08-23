@@ -1,3 +1,4 @@
+import copy
 import io
 
 import us
@@ -120,6 +121,7 @@ class QueryBlock:
         self.sorts = []
         self.comparators = []
         self.is_compare = False
+        self.is_cross = False
         self.aggregation = None
 
     def addTable(self, tableName, join=None):
@@ -205,7 +207,7 @@ class QueryBlockRenderer:
     def renderFrom(self, qb):
         sql = qb.table
         if (len(qb.joins)):
-            for join in set(qb.joins):
+            for join in set([tuple(join) for join in qb.joins]):
                 sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
         return sql
 
@@ -283,7 +285,14 @@ class QueryBlockRenderer:
             selects.append(["{agg}(IIF({lhs} {encoded_op} '{rhs}', {field}, NULL))".format(lhs=lhs, rhs=rhs, agg=agg,
                                                                                            encoded_op=encoded_op,
                                                                                            field=field),
-                            '{agg}_{rhs}'.format(agg=agg, rhs=rhs)])
+                            '{agg}_{rhs}'.format(agg=agg, rhs=rhs if rhs else 'NULL')])
+
+            selects.append([
+                "CONCAT(IIF({agg}(*)>0,{agg}(IIF({lhs} {encoded_op} '{rhs}', {field}, NULL)) * 100 / {agg}(*), 0), '%')".format(
+                    lhs=lhs, rhs=rhs, agg=agg,
+                    encoded_op=encoded_op,
+                    field=field),
+                '{agg}_{rhs}_PERCENT'.format(agg=agg, rhs=rhs if rhs else 'NULL')])
 
         def encodeCondition(cond, agg):
             op, lhs, rhs = cond
@@ -500,6 +509,80 @@ class AggregationByDescriptionIntentDecoder:
                     else:
                         qb.sorts.append((mapped_grouping['field'], 'ASC'))
         # qb.addTable("CallLog")
+
+        return entities, qb
+
+
+def findFieldNames(entities):
+    fieldNames = []
+    for e in entities:
+        if (e["type"] == '_FieldName'):
+            fieldNames.append(e["resolution"]["values"][0])
+    return fieldNames
+
+
+class CrossByFieldNameIntentDecoder:
+    def __init__(self, data_map):
+        self.data_map = data_map
+        self._element = 'Calls'
+        self._aggregation = 'Count'
+
+    def findEntityByType(self, entities, type_name):
+        for ix, e in enumerate(entities):
+            if e["type"] == type_name:
+                return ix, e["resolution"]["values"][0]
+        return -1, None
+
+    def findFieldNames(self, entities):
+        fieldNames = []
+        for e in entities:
+            if (e["type"] == '_FieldName'):
+                fieldNames.append(e["resolution"]["values"][0])
+        return fieldNames
+
+    def decode(self, intent_name, entities, prev_q=None):
+        # global DATA_MAP
+
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
+
+        _fieldNames = self.findFieldNames(entities)
+
+        data_map_repo = DataMapRepo(self.data_map)
+        mapped_element, mapped_aggregation = data_map_repo.findMapping(
+            self._element, self._aggregation)
+
+        update_number = None
+        for field_name in _fieldNames:
+            for dim in mapped_element["Dimensions"]:
+                if dim["name"].lower() == field_name.lower() and dim['type'] == 'int':
+                    update_number = dim["name"]
+
+        if update_number:
+            for ix, entity in enumerate(entities):
+                if entity['type'] == 'builtin.number':
+                    entities[ix]['type'] = update_number
+
+        qb = QueryBlock((self._element, self._aggregation))
+
+        qb.is_cross = True
+
+        for table in mapped_aggregation["tables"]:
+            if (type(table) == str):
+                qb.addTable(table)
+            else:
+                qb.addTable(table[0], table[1])
+
+        for col in mapped_aggregation["columns"]:
+            if "type" in col and col["type"] == "agg":
+                if "field" in col and col["field"]:
+                    if col["distinct"]:
+                        qb.selects.append(["Count(distinct dbo.{}.{})".format(
+                            qb.table, col["field"]), "Count_" + col["field"]])
+                    else:
+                        qb.selects.append(
+                            ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                else:
+                    qb.selects.append(["Count()", "Count"])
 
         return entities, qb
 
@@ -955,6 +1038,8 @@ class LuisIntentProcessor:
             data_map)
         self.i_decoders["breakdown-by"] = BreakdownByIntentDecoder(
             data_map)
+        self.i_decoders["cross-by-field-name"] = CrossByFieldNameIntentDecoder(
+            data_map)
 
         # Entity Decoders
         self.e_decoder_default = ColumnEntityDecoder(data_map)
@@ -973,6 +1058,9 @@ class LuisIntentProcessor:
 
         return None
 
+    def get_field_values(self, field, table, query_processor):
+        return query_processor.run_query('SELECT DISTINCT {} FROM {}'.format(field, table), [[field, field]])
+
     def get_entity_decoder(self, entity):
 
         t = entity["type"]
@@ -985,36 +1073,53 @@ class LuisIntentProcessor:
 
         return self.e_decoder_default
 
-    def prepare_query(self, q, prev_q):
+    def process_entity_list(self, entity_list, query):
+        for e in entity_list:
+            decoder = self.get_entity_decoder(e)
+            if decoder:
+                print('Decoding {}...'.format(e))
+                if query.comparators:
+                    qb = decoder.decode(e, query, comparators=query.comparators)
+                else:
+                    qb = decoder.decode(e, query)
+
+                query.merge(qb)
+
+            elif not e["type"].startswith("_"):
+                print("No decoder for Entity", e["type"])
+
+        if query.is_compare:
+            column_counter = defaultdict(int)
+            duplicated_value = None
+            for cond in query.conditions:
+                column_counter[cond[1]] += 1
+                if column_counter[cond[1]] > 1:
+                    duplicated_value = cond[1]
+                    break
+            conditions = query.conditions
+            query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
+            query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+        return query
+
+    def prepare_query(self, q, prev_q, query_processor):
         self.luis = q
+
+        union = False
 
         # First setup the context for the intent assigned by LUIS
         this_intent = q["topScoringIntent"]["intent"]
         intent_decoder = self.get_intent_decoder(this_intent)
-        if (not intent_decoder):
+        if not intent_decoder:
             print("Unable to continue. Un-recognized intent: ", this_intent)
             return False
-
-        # Note: I am assuming all intents ARE Query requests, but we know for a fact there is AT LEAST a "None" intent as well as some NAVIGATION intents
-        # so this is not such a good midterm assumption
 
         entity_list = []
         pprint(q['entities'])
         for e in q["entities"]:
             entity_list.append(e)
 
-        county_exists = False
-        city_exists = False
-        geography_exists = False
-        county = None
-        city = None
-        geography = None
-
         geography_entity_types = [
             'builtin.geographyV2.state', 'County', 'City', 'builtin.geographyV2.city']
-
-        geography_entities_found = [
-            el for el in entity_list if el['type'] in geography_entity_types]
 
         geography_entities_found = []
         for type in geography_entity_types:
@@ -1026,41 +1131,6 @@ class LuisIntentProcessor:
             len(geography_entities_found)))
         print(geography_entities_found)
 
-        # for entity in entity_list:
-        #     if entity['type'] == 'County':
-        #         county_exists = True
-        #         county = entity
-        #         break
-
-        # for entity in entity_list:
-        #     if entity['type'] == 'City':
-        #         city_exists = True
-        #         city = entity
-        #         break
-
-        # for entity in entity_list:
-        #     if 'geography' in entity['type']:
-        #         geography_exists = True
-        #         geography = entity
-        #         break
-
-        # if county_exists and geography_exists and\
-        #         (county['resolution']['values'][0].lower() == geography['entity'].lower() or
-        #          county['resolution']['values'][0].lower() in geography['entity'].lower() or
-        #          geography['entity'].lower() in county['resolution']['values'][0].lower()):  # Differentiate between county and state/city
-        #     county_keyword = False
-        #     for entity in entity_list:
-        #         if entity['entity'].lower() == 'county':
-        #             county_keyword = True
-        #             break
-
-        #     if county_keyword:
-        #         entity_list.remove(geography)
-        #     else:
-        #         entity_list.remove(county)
-
-        # pprint(entity_list)
-
         keep = None
         if 'county' in q['query'].lower():
             keep = ['county']
@@ -1070,8 +1140,6 @@ class LuisIntentProcessor:
             keep = ['builtin.geographyV2.state']
 
         queries = []
-
-        out = []
 
         ix_to_ix = {}
 
@@ -1091,8 +1159,6 @@ class LuisIntentProcessor:
         for ix in reversed(sorted(to_remove)):
             del entity_list[ix]
 
-        # ix_to_element[entity['startIndex']] =
-
         if len(geography_entities_found) > 1:
             # Build the initial query block
             for entity in geography_entities_found:
@@ -1102,71 +1168,52 @@ class LuisIntentProcessor:
                 entity_list, query = intent_decoder.decode(
                     this_intent, q["entities"], prev_q=prev_q)
 
-                # entity_list.remove(entity)
                 entity_list_ = [
                     entity_ for entity_ in entity_list if entity_ not in geography_entities_found or entity_ == entity]
 
-                for e in entity_list_:
-                    decoder = self.get_entity_decoder(e)
-                    if (decoder):
-                        print('Decoding {}...'.format(e))
-                        if query.comparators:
-                            qb = decoder.decode(e, query, comparators=query.comparators)
-                        else:
-                            qb = decoder.decode(e, query)
-
-                        query.merge(qb)
-
-                    elif (not e["type"].startswith("_")):
-                        print("No decoder for Entity", e["type"])
-
-                if query.is_compare:
-                    column_counter = defaultdict(int)
-                    duplicated_value = None
-                    for cond in query.conditions:
-                        column_counter[cond[1]] += 1
-                        if column_counter[cond[1]] > 1:
-                            duplicated_value = cond[1]
-                            break
-                    conditions = query.conditions
-                    query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
-                    query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+                query = self.process_entity_list(entity_list_, query)
 
                 queries.append(query)
         else:
 
-            entity_list, query = intent_decoder.decode(
-                this_intent, entity_list, prev_q=prev_q)
+            if this_intent == 'cross-by-field-name':
+                entity_list, query = intent_decoder.decode(
+                    this_intent, entity_list, prev_q=prev_q)
 
-            for e in entity_list:
-                decoder = self.get_entity_decoder(e)
-                if (decoder):
-                    print('Decoding {}...'.format(e))
-                    if query.comparators:
-                        qb = decoder.decode(e, query, comparators=query.comparators)
-                    else:
-                        qb = decoder.decode(e, query)
+                field_names = findFieldNames(entity_list)
+                if len(field_names) < 2:
+                    print('FATAL ERROR: Not enough fields for Cross')
+                    return
 
-                    query.merge(qb)
+                field_name_1 = field_names[0]
+                field_name_2 = field_names[1]
 
-                elif (not e["type"].startswith("_")):
-                    print("No decoder for Entity", e["type"])
+                values_1 = self.get_field_values(field_name_1, query.table, query_processor)
+                values_1 = [value[field_name_1] for value in values_1['Output']]
 
-            if query.is_compare:
-                column_counter = defaultdict(int)
-                duplicated_value = None
-                for cond in query.conditions:
-                    column_counter[cond[1]] += 1
-                    if column_counter[cond[1]] > 1:
-                        duplicated_value = cond[1]
-                        break
-                conditions = query.conditions
-                query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
-                query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+                values_2 = self.get_field_values(field_name_2, query.table, query_processor)
+                values_2 = [value[field_name_2] for value in values_2['Output']]
 
-            queries.append(query)
+                for value_1 in values_1:
+                    entity_list_ = copy.copy(entity_list)
+                    query_ = copy.deepcopy(query)
+                    entity_list_.append({'entity': value_1, 'type': field_name_1})
+                    query_.conditions.append(['eq', '{}.{}'.format(query_.table, field_name_1), value_1])
+                    for value_2 in values_2:
+                        entity_list_.append({'entity': value_2, 'type': field_name_2})
+                    query_.is_compare = True
+                    query_ = self.process_entity_list(entity_list_, query_)
+                    queries.append(query_)
 
-        return queries
+                union = True
+
+            else:
+                entity_list, query = intent_decoder.decode(
+                    this_intent, entity_list, prev_q=prev_q)
+                query = self.process_entity_list(entity_list, query)
+                queries.append(query)
+
+        return queries, union
 
 
 class QueryProcessor:
@@ -1246,12 +1293,21 @@ class AnswerzProcessor():
     def run_query(self, text):
         q = self.interpret(text)
         # pprint(q)
-        pqs = self.intentProcessor.prepare_query(q, self.prev_query)
+        pqs, union = self.intentProcessor.prepare_query(q, self.prev_query, self.queryProcessor)
         self.update_prev_query(pqs[0])  # TODO: fix bug here
         results = []
-        for pq in pqs:
-            result, sql = self.queryProcessor.generate_and_run_query(pq)
+        if union:
+            sqls = []
+            for pq in pqs:
+                sql = self.queryProcessor.generate_query(pq)
+                sqls.append(sql)
+            union_sql = ' union '.join(sqls)
+            result = self.queryProcessor.run_query(union_sql, pqs[0].getAllSelects())
             results.append((result, sql))
+        else:
+            for pq in pqs:
+                result, sql = self.queryProcessor.generate_and_run_query(pq)
+                results.append((result, sql))
         return results
 
     def run_sql_query(self, sql, headers):

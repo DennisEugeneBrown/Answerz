@@ -242,11 +242,12 @@
           "class": "field",
           "type": "string",
           "name": "Need",
-          "field": "CallLogNeeds2.TaxonomyName",
+          "field": "CallLogNeeds.Need",
+          "exact_match": false,
           "joins": [
             [
-              "CallLogNeeds2",
-              "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLogNeeds",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         }
@@ -513,11 +514,11 @@
           "class": "field",
           "type": "string",
           "name": "Need",
-          "field": "CallLogNeeds2.TaxonomyName",
+          "field": "CallLogNeeds.Need",
           "joins": [
             [
-              "CallLogNeeds2",
-              "CallLog2.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLogNeeds",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         }
@@ -866,6 +867,338 @@
             ]
           ]
         }
+      ],
+      "Groupings": [
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Referral",
+          "field": "Referral",
+          "joins": null,
+          "exact_match": false
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.geographyV2.state",
+          "display_name": "State",
+          "field": "CallLog3.State",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "datetime",
+          "name": "Date",
+          "field": "CallLog3.CallDate",
+          "display_name": "CallDate",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.personName",
+          "field": "CallLog3.PhoneWorker",
+          "display_name": "PhoneWorker",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Length",
+          "field": "CallLog3.CallLength",
+          "display_name": "CallLength",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.currency",
+          "field": "CallLog3.AnnualIncome",
+          "display_name": "AnnualIncome",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "builtin.age",
+          "field": "CallLog3.age",
+          "display_name": "age",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "builtin.number",
+          "field": "CallLog3.CallLength",
+          "display_name": "CallLength",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Race",
+          "field": "CallLog3.Race",
+          "display_name": "Race",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "MaritalStatus",
+          "field": "CallLog3.MaritalStatus",
+          "display_name": "MaritalStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "ZipCode",
+          "field": "CallLog3.ZipCode",
+          "display_name": "ZipCode",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "PhoneWorker",
+          "field": "CallLog3.PhoneWorker",
+          "display_name": "PhoneWorker",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "TargetPopulation",
+          "field": "CallLog3.TargetPopulation",
+          "display_name": "TargetPopulation",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.geographyV2.city",
+          "field": "CallLog3.City",
+          "display_name": "City",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "City",
+          "field": "CallLog3.City",
+          "display_name": "City",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "County",
+          "field": "CallLog3.County",
+          "display_name": "County",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "ZipCode",
+          "field": "CallLog3.ZipCode",
+          "display_name": "ZipCode",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Language",
+          "field": "CallLog3.Language",
+          "display_name": "Language",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Gender",
+          "field": "CallLog3.Gender",
+          "display_name": "Gender",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "HomelessType",
+          "field": "CallLog3.HomelessType",
+          "display_name": "HomelessType",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "BranchOfService",
+          "field": "CallLog3.BranchOfService",
+          "display_name": "BranchOfService",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "EmploymentStatus",
+          "field": "CallLog3.EmploymentStatus",
+          "display_name": "EmploymentStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "HighestEducation",
+          "field": "CallLog3.HighestEducation",
+          "display_name": "HighestEducation",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "VetDischargeStatus",
+          "field": "CallLog3.VetDischargeStatus",
+          "display_name": "VetDischargeStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "boolean",
+          "name": "LogicalLabel",
+          "field": {
+            "Vetran": "WhetherVeteran",
+            "Veteran with children": "WhetherVetWithChildren",
+            "With place to stay": "WhetherSafePlaceToStay",
+            "interested in calfresh": "WhetherInterestedInCalFresh",
+            "interested in tax prep": "WhetherInterestedInTaxPrep",
+            "combat veteran": "WhetherCombatVet",
+            "has children under 18": "WhetherHasChildrenUnder18",
+            "Domestic Violence": "WhetherDVCall",
+            "LGBTQ": "LGBTQ"
+          },
+          "default_value": "Yes",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ]
+        }
       ]
     },
     "Needs": {
@@ -873,7 +1206,7 @@
         {
           "name": "Count",
           "tables": [
-            "CallLogNeeds2"
+            "CallLogNeeds"
           ],
           "default": true,
           "columns": [
@@ -892,6 +1225,14 @@
           "type": "string",
           "name": "TaxonomyName",
           "field": "TaxonomyName",
+          "joins": null,
+          "exact_match": false
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Need",
+          "field": "Need",
           "joins": null,
           "exact_match": false
         },
@@ -952,7 +1293,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -965,7 +1306,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -978,7 +1319,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -991,7 +1332,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1004,7 +1345,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1017,7 +1358,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1030,7 +1371,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1043,7 +1384,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1056,7 +1397,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1069,7 +1410,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1082,7 +1423,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1095,7 +1436,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1108,7 +1449,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1121,7 +1462,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1134,7 +1475,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1147,7 +1488,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1160,7 +1501,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1180,7 +1521,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1193,7 +1534,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1206,7 +1547,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1219,7 +1560,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1232,7 +1573,7 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         },
@@ -1255,7 +1596,339 @@
           "joins": [
             [
               "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds2.CallLogId"
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        }
+      ],
+      "Groupings": [
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Referral",
+          "field": "Referral",
+          "joins": null,
+          "exact_match": false
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.geographyV2.state",
+          "display_name": "State",
+          "field": "CallLog3.State",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "datetime",
+          "name": "Date",
+          "field": "CallLog3.CallDate",
+          "display_name": "CallDate",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.personName",
+          "field": "CallLog3.PhoneWorker",
+          "display_name": "PhoneWorker",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Length",
+          "field": "CallLog3.CallLength",
+          "display_name": "CallLength",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.currency",
+          "field": "CallLog3.AnnualIncome",
+          "display_name": "AnnualIncome",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "builtin.age",
+          "field": "CallLog3.age",
+          "display_name": "age",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "int",
+          "name": "builtin.number",
+          "field": "CallLog3.CallLength",
+          "display_name": "CallLength",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Race",
+          "field": "CallLog3.Race",
+          "display_name": "Race",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "MaritalStatus",
+          "field": "CallLog3.MaritalStatus",
+          "display_name": "MaritalStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "ZipCode",
+          "field": "CallLog3.ZipCode",
+          "display_name": "ZipCode",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "PhoneWorker",
+          "field": "CallLog3.PhoneWorker",
+          "display_name": "PhoneWorker",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "TargetPopulation",
+          "field": "CallLog3.TargetPopulation",
+          "display_name": "TargetPopulation",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "builtin.geographyV2.city",
+          "field": "CallLog3.City",
+          "display_name": "City",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "City",
+          "field": "CallLog3.City",
+          "display_name": "City",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "County",
+          "field": "CallLog3.County",
+          "display_name": "County",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "ZipCode",
+          "field": "CallLog3.ZipCode",
+          "display_name": "ZipCode",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Language",
+          "field": "CallLog3.Language",
+          "display_name": "Language",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Gender",
+          "field": "CallLog3.Gender",
+          "display_name": "Gender",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "HomelessType",
+          "field": "CallLog3.HomelessType",
+          "display_name": "HomelessType",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "BranchOfService",
+          "field": "CallLog3.BranchOfService",
+          "display_name": "BranchOfService",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "EmploymentStatus",
+          "field": "CallLog3.EmploymentStatus",
+          "display_name": "EmploymentStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "HighestEducation",
+          "field": "CallLog3.HighestEducation",
+          "display_name": "HighestEducation",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "VetDischargeStatus",
+          "field": "CallLog3.VetDischargeStatus",
+          "display_name": "VetDischargeStatus",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "boolean",
+          "name": "LogicalLabel",
+          "field": {
+            "Vetran": "WhetherVeteran",
+            "Veteran with children": "WhetherVetWithChildren",
+            "With place to stay": "WhetherSafePlaceToStay",
+            "interested in calfresh": "WhetherInterestedInCalFresh",
+            "interested in tax prep": "WhetherInterestedInTaxPrep",
+            "combat veteran": "WhetherCombatVet",
+            "has children under 18": "WhetherHasChildrenUnder18",
+            "Domestic Violence": "WhetherDVCall",
+            "LGBTQ": "LGBTQ"
+          },
+          "default_value": "Yes",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
             ]
           ]
         }
