@@ -117,6 +117,7 @@ class QueryBlock:
         self.joins = []
         self.conditions = []
         self.count_conditions = []
+        self.date_count_conditions = False
         self.groups = []
         self.sorts = []
         self.comparators = []
@@ -175,7 +176,8 @@ class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
         if qb.count_conditions:
-            qb.selects = self.processCountConditions(qb, agg=qb.queryIntent[1].upper())
+            qb.selects = self.processCountConditions(qb,
+                                                     agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
@@ -276,39 +278,67 @@ class QueryBlockRenderer:
     def processCountConditions(self, qb, agg='COUNT'):
         selects = []
 
-        def encodeSelect(lhs, rhs, agg, encoded_op):
+        def encodeSelect(lhs, rhs, agg, encoded_op, and_=None):
             if agg.lower() == 'avg':
                 field = "CAST(dbo.{}.{} AS {})".format(qb.table, 'CallLength', 'INT')
             else:
                 field = 1
 
-            selects.append(["{agg}(IIF({lhs} {encoded_op} '{rhs}', {field}, NULL))".format(lhs=lhs, rhs=rhs, agg=agg,
-                                                                                           encoded_op=encoded_op,
-                                                                                           field=field),
-                            '{agg}_{rhs}'.format(agg=agg, rhs=rhs if rhs else 'NULL')])
+            selects.append(
+                ["{agg}(IIF({lhs} {encoded_op} '{rhs}'{and_}, {field}, NULL))".format(lhs=lhs, rhs=rhs, agg=agg,
+                                                                                      encoded_op=encoded_op,
+                                                                                      field=field,
+                                                                                      and_="AND {lhs} {encoded_op} '{rhs}'".format(
+                                                                                          lhs=and_[0], rhs=and_[1],
+                                                                                          encoded_op=and_[
+                                                                                              2]) if and_ else ''),
+                 '{agg}_{rhs}'.format(agg=agg, rhs=rhs if rhs else 'NULL')])
 
             selects.append([
-                "CONCAT(IIF({agg}(*)>0,{agg}(IIF({lhs} {encoded_op} '{rhs}', {field}, NULL)) * 100 / {agg}(*), 0), '%')".format(
+                "CONCAT(IIF({agg}(*)>0,{agg}(IIF({lhs} {encoded_op} '{rhs}'{and_}, {field}, NULL)) * 100 / {agg}(*), 0), '%')".format(
                     lhs=lhs, rhs=rhs, agg=agg,
                     encoded_op=encoded_op,
-                    field=field),
+                    field=field, and_="AND {lhs} {encoded_op} '{rhs}'".format(lhs=and_[0], rhs=and_[1],
+                                                                              encoded_op=and_[2]) if and_ else ''),
                 '{agg}_{rhs}_PERCENT'.format(agg=agg, rhs=rhs if rhs else 'NULL')])
 
         def encodeCondition(cond, agg):
-            op, lhs, rhs = cond
+            if len(cond) == 2:
+                conds = []
+                for cond_ in cond:
+                    op, lhs, rhs = cond_
+                    encoded_op = " = "
+                    if (op == "eq"):
+                        encoded_op = " = "
+                    if (op == "lk"):
+                        encoded_op = " like "
+                    if (op == "lt"):
+                        encoded_op = " < "
+                    if (op == "lte"):
+                        encoded_op = " <= "
+                    if (op == "gt"):
+                        encoded_op = " > "
+                    if (op == "gte"):
+                        encoded_op = " >= "
+                    conds.append([lhs, rhs, encoded_op])
+                encodeSelect(conds[0][0], conds[0][1], agg, conds[0][2], and_=[conds[1][0], conds[1][1], conds[1][2]])
 
-            if (op == "eq"):
-                encodeSelect(lhs, rhs, agg, " = ")
-            if (op == "lk"):
-                encodeSelect(lhs, rhs, agg, " like ")
-            if (op == "lt"):
-                encodeSelect(lhs, rhs, agg, " < ")
-            if (op == "lte"):
-                encodeSelect(lhs, rhs, agg, " <= ")
-            if (op == "gt"):
-                encodeSelect(lhs, rhs, agg, " > ")
-            if (op == "gte"):
-                encodeSelect(lhs, rhs, agg, " >= ")
+            else:
+                op, lhs, rhs = cond
+                encoded_op = " = "
+                if (op == "eq"):
+                    encoded_op = " = "
+                if (op == "lk"):
+                    encoded_op = " like "
+                if (op == "lt"):
+                    encoded_op = " < "
+                if (op == "lte"):
+                    encoded_op = " <= "
+                if (op == "gt"):
+                    encoded_op = " > "
+                if (op == "gte"):
+                    encoded_op = " >= "
+                encodeSelect(lhs, rhs, agg, encoded_op)
 
         other_selects = set()
         for term in qb.conditions:
@@ -317,8 +347,12 @@ class QueryBlockRenderer:
             selects.append(["'" + term[2] + "'", term[1]])
 
         # Handle the group selects
-        for term in qb.count_conditions:
-            encodeCondition(term, agg)
+        if qb.date_count_conditions and len(qb.count_conditions) == 4:
+            encodeCondition([qb.count_conditions[0], qb.count_conditions[1]], agg)
+            encodeCondition([qb.count_conditions[2], qb.count_conditions[3]], agg)
+        else:
+            for term in qb.count_conditions:
+                encodeCondition(term, agg)
 
         return selects
 
@@ -722,23 +756,19 @@ class EntityDecoderBase:
         return None
 
     def lookupTablesAndFieldByType(self, _element, _aggregation, entity_type, data_map):
-
         self.data_map = data_map
 
         data_map_repo = DataMapRepo(self.data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
-
         for dim in mapped_element["Dimensions"]:
-
             if (dim["type"] == entity_type):
                 tables = mapped_aggregation["tables"]
                 # No handling yet for additional table requirements on field
 
-                return {
-                    "tables": tables,
-                    "field": dim["field"]
-                }
+                result = dim
+                result["tables"] = tables
+                return result
 
         return None
 
@@ -959,29 +989,59 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
                 lu = self.lookupTablesAndFieldByType(
                     query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
-                if not lu:
-                    entity_type = "date"
-                    lu = self.lookupTablesAndFieldByType(
-                        query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
 
-                if (lu):
-                    # TODO for compatability other than MSSQL need to lookup seperator
-                    field_name = lu["tables"][0] + "." + lu["field"]
+                #############################
 
-                    # Field name hard coded for now. This is wrong.
-                    qb = QueryBlock()
-                    qb.addTable(query_block.table)
+                if lu:
+                    tables = lu["tables"]
+                    field_name = lu["field"]
+                    display_name = lu["display_name"] if "display_name" in lu else ''
+                else:
+                    tables = []
+                    field_name = ''
+                    display_name = ''
 
+                qb = QueryBlock(query_block.queryIntent)
+
+                qb.conditions.append(
+                    ["gte", field_name, entity_value["start"]])
+                if "end" in entity_value:
                     qb.conditions.append(
-                        ["gte", field_name, entity_value["start"]])
-                    if "end" in entity_value:
-                        qb.conditions.append(
-                            ["lt", field_name, entity_value["end"]])
-                    else:
-                        qb.conditions.append(
-                            ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
+                        ["lt", field_name, entity_value["end"]])
+                else:
+                    qb.conditions.append(
+                        ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
 
-                    return qb
+                if ("joins" in lu and lu["joins"]):
+                    for join in lu["joins"]:
+                        qb.addTable(join[0], join[1])
+
+                return qb
+
+                #############################
+                # if not lu:
+                #     entity_type = "date"
+                #     lu = self.lookupTablesAndFieldByType(
+                #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+                #
+                # if (lu):
+                #     # TODO for compatability other than MSSQL need to lookup seperator
+                #     field_name = lu["field"]
+                #
+                #     # Field name hard coded for now. This is wrong.
+                #     qb = QueryBlock()
+                #     qb.addTable(query_block.table)
+                #
+                #     qb.conditions.append(
+                #         ["gte", field_name, entity_value["start"]])
+                #     if "end" in entity_value:
+                #         qb.conditions.append(
+                #             ["lt", field_name, entity_value["end"]])
+                #     else:
+                #         qb.conditions.append(
+                #             ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
+                #
+                #     return qb
 
         return None
 
@@ -1004,25 +1064,51 @@ class DateEntityDecoder(EntityDecoderBase):
 
                 lu = self.lookupTablesAndFieldByType(
                     query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
-                if not lu:
-                    entity_type = "date"
-                    lu = self.lookupTablesAndFieldByType(
-                        query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+                if lu:
+                    tables = lu["tables"]
+                    field_name = lu["field"]
+                    display_name = lu["display_name"] if "display_name" in lu else ''
+                else:
+                    tables = []
+                    field_name = ''
+                    display_name = ''
 
-                if (lu):
-                    # TODO for compatability other than MSSQL need to lookup seperator
-                    field_name = lu["tables"][0] + "." + lu["field"]
+                qb = QueryBlock(query_block.queryIntent)
 
-                    # Field name hard coded for now. This is wrong.
-                    qb = QueryBlock()
-                    qb.addTable(query_block.table)
-
+                qb.conditions.append(
+                    ["gte", field_name, entity_value["start"]])
+                if "end" in entity_value:
                     qb.conditions.append(
-                        ["gte", field_name, entity_value["value"]])
+                        ["lt", field_name, entity_value["end"]])
+                else:
                     qb.conditions.append(
-                        ["lte", field_name, entity_value["value"] + ' 23:59:59'])
+                        ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
 
-                    return qb
+                if ("joins" in lu and lu["joins"]):
+                    for join in lu["joins"]:
+                        qb.addTable(join[0], join[1])
+
+                return qb
+
+                # if not lu:
+                #     entity_type = "date"
+                #     lu = self.lookupTablesAndFieldByType(
+                #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+
+                # if (lu):
+                #     # TODO for compatability other than MSSQL need to lookup seperator
+                #     field_name = lu["field"]
+                #
+                #     # Field name hard coded for now. This is wrong.
+                #     qb = QueryBlock()
+                #     qb.addTable(query_block.table)
+                #
+                #     qb.conditions.append(
+                #         ["gte", field_name, entity_value["value"]])
+                #     qb.conditions.append(
+                #         ["lte", field_name, entity_value["value"] + ' 23:59:59'])
+                #
+                #     return qb
 
         return None
 
@@ -1099,6 +1185,7 @@ class LuisIntentProcessor:
             conditions = query.conditions
             query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
             query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+            query.date_count_conditions = True
         return query
 
     def prepare_query(self, q, prev_q, query_processor):
@@ -1126,6 +1213,19 @@ class LuisIntentProcessor:
             for entity in entity_list:
                 if entity['type'] == type:
                     geography_entities_found.append(entity)
+
+        date_entities_found = []
+        number_entities_found = []
+        for entity in entity_list:
+            if entity['type'] == 'builtin.datetimeV2' or entity['type'] == 'builtin.datetimeV2.daterange':
+                date_entities_found.append(entity)
+            if entity['type'] == 'builtin.number':
+                number_entities_found.append(entity)
+
+        for date_entity in date_entities_found:
+            for number_entity in number_entities_found:
+                if date_entity['entity'] == number_entity['entity']:
+                    entity_list.remove(number_entity)
 
         print('There are {} geography entities.'.format(
             len(geography_entities_found)))
@@ -1159,7 +1259,7 @@ class LuisIntentProcessor:
         for ix in reversed(sorted(to_remove)):
             del entity_list[ix]
 
-        if len(geography_entities_found) > 1:
+        if len(geography_entities_found) > 1 and False:
             # Build the initial query block
             for entity in geography_entities_found:
                 if keep and entity['type'].lower() not in keep:
