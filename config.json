@@ -957,6 +957,28 @@
         },
         {
           "class": "field",
+          "type": "string",
+          "name": "Age",
+          "field": "Age",
+          "joins": [
+            [
+              "CallLog3",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
+            ]
+          ],
+          "sort_fields": [
+            [
+              "Age_from",
+              "ASC"
+            ],
+            [
+              "Age",
+              "DESC"
+            ]
+          ]
+        },
+        {
+          "class": "field",
           "type": "int",
           "name": "builtin.number",
           "field": "CallLog3.CallLength",

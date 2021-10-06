@@ -475,7 +475,7 @@ class AggregationByDescriptionIntentDecoder:
 
         mapped_groupings = []
         if _groupAction:
-            if _groupAction in ['group by', 'breakdown by']:
+            if _groupAction.lower() in ['group by', 'breakdown by']:
                 if _fieldNames:
                     _, mapped_grouping = data_map_repo.findGrouping(
                         _element, _fieldNames[-1])
@@ -525,7 +525,7 @@ class AggregationByDescriptionIntentDecoder:
 
         if _groupAction:
             # print('GROUPS:', qb.groups)
-            if _groupAction in ['group by', 'breakdown by']:
+            if _groupAction.lower() in ['group by', 'breakdown by']:
                 for mapped_grouping in mapped_groupings:
                     if mapped_grouping['joins']:
                         qb.joins.extend(tuple(mapped_grouping['joins']))
