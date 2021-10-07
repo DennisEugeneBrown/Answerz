@@ -14,7 +14,7 @@
     "password": "Bffspoew1234"
   },
   "DATAMAP": {
-    "Calls": {
+    "calls": {
       "Aggregations": [
         {
           "name": "Count",
@@ -524,7 +524,7 @@
         }
       ]
     },
-    "Referrals": {
+    "referrals": {
       "Aggregations": [
         {
           "name": "Count",
@@ -1223,7 +1223,7 @@
         }
       ]
     },
-    "Needs": {
+    "needs": {
       "Aggregations": [
         {
           "name": "Count",

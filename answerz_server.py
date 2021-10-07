@@ -45,6 +45,7 @@ class DataMapRepo:
 
     def getAllGroupings(self, _element):
         mapped_element = None
+        _element = _element.lower()
         if not _element in self.DATA_MAP:
             print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
             return
@@ -58,6 +59,7 @@ class DataMapRepo:
 
     def findGrouping(self, _element, _groupAction):
         mapped_element = None
+        _element = _element.lower()
         if _element not in self.DATA_MAP:
             print("FATAL ERROR. Missing mapping for _DataElement = ", _element)
             return
@@ -84,6 +86,7 @@ class DataMapRepo:
     def findMapping(self, _element, _aggregation):
 
         mapped_element = None
+        _element = _element.lower()
         if not _element in self.DATA_MAP:
             print("FATAL ERROR. Missing mapping for _DataElement = ", _element, "... Using Calls.")
             # return
@@ -249,7 +252,7 @@ class QueryBlockRenderer:
             return lhs
 
         def encodeRHS(rhs):
-            return "'" + rhs + "'"
+            return "'" + str(rhs) + "'"
 
         def encodeCondition(cond):
             op, lhs, rhs = cond
@@ -344,7 +347,7 @@ class QueryBlockRenderer:
         for term in qb.conditions:
             other_selects.add(tuple(term))
         for term in other_selects:
-            selects.append(["'" + term[2] + "'", term[1]])
+            selects.append(["'" + str(term[2]) + "'", term[1]])
 
         # Handle the group selects
         if qb.date_count_conditions and len(qb.count_conditions) == 4:
@@ -421,14 +424,14 @@ class AggregationByDescriptionIntentDecoder:
     def findEntityByType(self, entities, type_name):
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e["resolution"]["values"][0]
+                return ix, e['entity']
         return -1, None
 
     def findFieldNames(self, entities):
         fieldNames = []
         for e in entities:
             if (e["type"] == '_FieldName'):
-                fieldNames.append(e["resolution"]["values"][0])
+                fieldNames.append(e['entity'])
         return fieldNames
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
@@ -475,7 +478,7 @@ class AggregationByDescriptionIntentDecoder:
 
         mapped_groupings = []
         if _groupAction:
-            if _groupAction.lower() in ['group by', 'breakdown by']:
+            if _groupAction.lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
                 if _fieldNames:
                     _, mapped_grouping = data_map_repo.findGrouping(
                         _element, _fieldNames[-1])
@@ -551,7 +554,7 @@ def findFieldNames(entities):
     fieldNames = []
     for e in entities:
         if (e["type"] == '_FieldName'):
-            fieldNames.append(e["resolution"]["values"][0])
+            fieldNames.append(e['entity'])
     return fieldNames
 
 
@@ -564,14 +567,14 @@ class CrossByFieldNameIntentDecoder:
     def findEntityByType(self, entities, type_name):
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e["resolution"]["values"][0]
+                return ix, e['entity']
         return -1, None
 
     def findFieldNames(self, entities):
         fieldNames = []
         for e in entities:
             if (e["type"] == '_FieldName'):
-                fieldNames.append(e["resolution"]["values"][0])
+                fieldNames.append(e['entity'])
         return fieldNames
 
     def decode(self, intent_name, entities, prev_q=None):
@@ -628,7 +631,7 @@ class AggregationByLogicalYesDecoder:
     def findEntityByType(self, entities, type_name):
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e["resolution"]["values"][0]
+                return ix, e['entity']
         return -1, None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
@@ -687,7 +690,7 @@ class BreakdownByIntentDecoder:
     def findEntityByType(self, entities, type_name):
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e["resolution"]["values"][0]
+                return ix, e['entity']
         return -1, None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
@@ -907,7 +910,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
 
             entity_name = entity["type"]
             if 'resolution' in entity:
-                entity_value = entity["resolution"]["values"][0]
+                entity_value = entity['entity']
             else:
                 entity_value = entity['entity']
 
@@ -977,71 +980,68 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
     # Takes the entity to decode + a potential query_block to augment
     def decode(self, entity, query_block=None, comparators=None):
-        values = entity["resolution"]["values"]
+        value = entity['entity']
 
-        if (len(values) == 1):
+        if (value["type"] == "daterange"):
 
-            value = values[0]
-            if (value["type"] == "daterange"):
+            entity_type = "datetime"
+            entity_value = value['values'][0]['resolution'][0]
 
-                entity_type = "datetime"
-                entity_value = entity["resolution"]["values"][0]
+            lu = self.lookupTablesAndFieldByType(
+                query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
 
-                lu = self.lookupTablesAndFieldByType(
-                    query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+            #############################
 
-                #############################
+            if lu:
+                tables = lu["tables"]
+                field_name = lu["field"]
+                display_name = lu["display_name"] if "display_name" in lu else ''
+            else:
+                tables = []
+                field_name = ''
+                display_name = ''
 
-                if lu:
-                    tables = lu["tables"]
-                    field_name = lu["field"]
-                    display_name = lu["display_name"] if "display_name" in lu else ''
-                else:
-                    tables = []
-                    field_name = ''
-                    display_name = ''
+            qb = QueryBlock(query_block.queryIntent)
 
-                qb = QueryBlock(query_block.queryIntent)
-
+            qb.conditions.append(
+                ["gte", field_name, entity_value["start"]])
+            if "end" in entity_value:
                 qb.conditions.append(
-                    ["gte", field_name, entity_value["start"]])
-                if "end" in entity_value:
-                    qb.conditions.append(
-                        ["lt", field_name, entity_value["end"]])
-                else:
-                    qb.conditions.append(
-                        ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
+                    ["lt", field_name, entity_value["end"]])
+            else:
+                qb.conditions.append(
+                    ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
 
-                if ("joins" in lu and lu["joins"]):
-                    for join in lu["joins"]:
-                        qb.addTable(join[0], join[1])
+            if ("joins" in lu and lu["joins"]):
+                for join in lu["joins"]:
+                    qb.addTable(join[0], join[1])
 
-                return qb
+            return qb
 
-                #############################
-                # if not lu:
-                #     entity_type = "date"
-                #     lu = self.lookupTablesAndFieldByType(
-                #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
-                #
-                # if (lu):
-                #     # TODO for compatability other than MSSQL need to lookup seperator
-                #     field_name = lu["field"]
-                #
-                #     # Field name hard coded for now. This is wrong.
-                #     qb = QueryBlock()
-                #     qb.addTable(query_block.table)
-                #
-                #     qb.conditions.append(
-                #         ["gte", field_name, entity_value["start"]])
-                #     if "end" in entity_value:
-                #         qb.conditions.append(
-                #             ["lt", field_name, entity_value["end"]])
-                #     else:
-                #         qb.conditions.append(
-                #             ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
-                #
-                #     return qb
+            #############################
+            # if not lu:
+            #     entity_type = "date"
+            #     lu = self.lookupTablesAndFieldByType(
+            #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
+            #
+            # if (lu):
+            #     # TODO for compatability other than MSSQL need to lookup seperator
+            #     field_name = lu["field"]
+            #
+            #     # Field name hard coded for now. This is wrong.
+            #     qb = QueryBlock()
+            #     qb.addTable(query_block.table)
+            #
+            #     qb.conditions.append(
+            #         ["gte", field_name, entity_value["start"]])
+            #     if "end" in entity_value:
+            #         qb.conditions.append(
+            #             ["lt", field_name, entity_value["end"]])
+            #     else:
+            #         qb.conditions.append(
+            #             ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
+            #
+            #     return qb
 
         return None
 
@@ -1060,7 +1060,7 @@ class DateEntityDecoder(EntityDecoderBase):
             if (value["type"] == "date"):
 
                 entity_type = "datetime"
-                entity_value = entity["resolution"]["values"][0]
+                entity_value = entity['entity']
 
                 lu = self.lookupTablesAndFieldByType(
                     query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
@@ -1194,16 +1194,32 @@ class LuisIntentProcessor:
         union = False
 
         # First setup the context for the intent assigned by LUIS
-        this_intent = q["topScoringIntent"]["intent"]
+        # this_intent = q["topScoringIntent"]["intent"]
+        this_intent = q["prediction"]["topIntent"]
         intent_decoder = self.get_intent_decoder(this_intent)
         if not intent_decoder:
             print("Unable to continue. Un-recognized intent: ", this_intent)
             return False
 
-        entity_list = []
-        pprint(q['entities'])
-        for e in q["entities"]:
-            entity_list.append(e)
+        entities = q['prediction']['entities']['$instance']
+        pprint(entities)
+
+        entity_list = [{**entity, 'ix_in_type': ix, 'key': ent_type} for ent_type, entities_of_type in
+                       [(ent_type, entities[ent_type]) for ent_type in entities] for ix, entity in
+                       enumerate(entities_of_type)]
+
+        for ix, entity in enumerate(entity_list):
+            entity_normalized = q['prediction']['entities'][entity['key']][entity['ix_in_type']]
+            if isinstance(entity_normalized, list):
+                entity['entity'] = entity_normalized[0]
+            elif isinstance(entity_normalized, dict):
+                if 'value' in entity_normalized:
+                    entity['entity'] = entity_normalized['value']
+                else:
+                    entity['entity'] = entity_normalized
+            else:
+                entity['entity'] = entity_normalized
+            entity_list[ix] = entity
 
         geography_entity_types = [
             'builtin.geographyV2.state', 'County', 'City', 'builtin.geographyV2.city']
@@ -1224,7 +1240,7 @@ class LuisIntentProcessor:
 
         for date_entity in date_entities_found:
             for number_entity in number_entities_found:
-                if date_entity['entity'] == number_entity['entity']:
+                if date_entity['text'] == number_entity['text']:
                     entity_list.remove(number_entity)
 
         print('There are {} geography entities.'.format(
@@ -1259,14 +1275,15 @@ class LuisIntentProcessor:
         for ix in reversed(sorted(to_remove)):
             del entity_list[ix]
 
-        if len(geography_entities_found) > 1 and False:
+        if len(geography_entities_found) > 1 and this_intent != 'cross-by-field-name' and 'compare' not in q[
+            'query'].lower():
             # Build the initial query block
             for entity in geography_entities_found:
                 if keep and entity['type'].lower() not in keep:
                     continue
 
                 entity_list, query = intent_decoder.decode(
-                    this_intent, q["entities"], prev_q=prev_q)
+                    this_intent, entity_list, prev_q=prev_q)
 
                 entity_list_ = [
                     entity_ for entity_ in entity_list if entity_ not in geography_entities_found or entity_ == entity]
@@ -1383,9 +1400,9 @@ class AnswerzProcessor():
         luis_app_id = self.luis_config["luis_app_id"]
         luis_subscription_key = self.luis_config["luis_subscription_key"]
 
-        url = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/{}?staging={}&verbose=true&timezoneOffset=-360&subscription-key={}".format(
-            luis_app_id, staging, luis_subscription_key)
-        r = requests.get(url=url + "&q=" + text)
+        url = "https://westus.api.cognitive.microsoft.com/luis/prediction/v3.0/apps/{}/slots/staging/predict?subscription-key={}&verbose=true&show-all-intents=true&log=true&query={}".format(
+            luis_app_id, luis_subscription_key, text)
+        r = requests.get(url=url)
         data = r.json()
         pprint(data)
         return data
