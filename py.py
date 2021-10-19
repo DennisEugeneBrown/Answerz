@@ -1,8 +1,10 @@
 import os
 import sys
+import webbrowser
 from json2html import *
 from flask import Flask, request
 from answerz_server import AnswerzProcessor
+from threading import Timer
 
 app = Flask(__name__, instance_path="/home/yuzo-san/IdeaProjects/Answerz/instance")
 app.config.from_json('config.json')
@@ -45,9 +47,12 @@ def my_form_post():
     else:
         return ''
 
+def open_browser():
+    webbrowser.open_new('http://127.0.0.1:5555')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         app.run(host=sys.argv[1])
     else:
+        Timer(1, open_browser).start()
         app.run(host='127.0.0.1', port=5555)
