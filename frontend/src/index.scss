@@ -27,9 +27,10 @@ $lfs-yellow: #fab700;
 $lfs-grey: #75787b;
 .json-to-table table {
   vertical-align: top;
-  font-size: 1vw !important;
+  font-size: calc(.1vw * var(--landscape-width)) !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
   width: 100%;
+  margin: 20px;
   margin-bottom: 20vw;
 
   caption {
