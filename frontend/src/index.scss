@@ -21,6 +21,10 @@ div {
 .loading {
 }
 
+.TableClass {
+  margin-bottom: 20vw;
+}
+
 $background: #efefef;
 $lfs-blue: #006ac6;
 $lfs-yellow: #fab700;
@@ -31,7 +35,7 @@ $lfs-grey: #75787b;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
   width: 100%;
   margin: 20px;
-  margin-bottom: 20vw;
+  margin-bottom: 2vw;
 
   caption {
     text-transform: uppercase;
@@ -96,6 +100,7 @@ $lfs-grey: #75787b;
     }
   }
 }
+
 
 :root {
   --landscape-width: 25; // % OR vw for responsive window resizing!
@@ -261,7 +266,7 @@ input {
   vertical-align: middle;
   padding-top: 4px;
   padding-left: 0.7vw;
-  width:80vw;
+  width: 80vw;
 }
 
 input:focus {

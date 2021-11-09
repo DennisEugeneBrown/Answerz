@@ -31,5 +31,5 @@ class Answerz(Resource):
             out.append(result['Output'])
             print(result['Output'])
 
-        final_ret = {"status": "Success", "message": out[0]}
+        final_ret = {"status": "Success", "message": out, "queries": sql_lower}
         return final_ret

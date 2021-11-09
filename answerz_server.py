@@ -127,6 +127,7 @@ class QueryBlock:
         self.is_compare = False
         self.is_cross = False
         self.aggregation = None
+        self.unions = []
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -191,6 +192,11 @@ class QueryBlockRenderer:
         group_sql = self.renderGroups(qb)
         if (group_sql):
             sql = sql + "\nGROUP BY " + group_sql
+
+        if qb.unions:
+            qbr = QueryBlockRenderer()
+            qb2 = qbr.render(qb.unions[0])
+            sql += ' UNION ' + qb2
 
         order_sql = self.renderSorts(qb)
         if (order_sql):
@@ -544,7 +550,19 @@ class AggregationByDescriptionIntentDecoder:
                             if sort_field[0] != mapped_grouping['field']:
                                 qb.groups.append((sort_field[0], sort_field[0]))
                     else:
-                        qb.sorts.append((mapped_grouping['field'], 'ASC'))
+                        qb.sorts.append((qb.selects[0][-1], 'DESC'))
+                qb.selects.append([
+                    "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
+                        count=qb.selects[0][0]),
+                    'percentage'])
+                qb2 = QueryBlock()
+                qb2.selects = [["'Total'", qb.groups[0][1]],
+                               ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+                               ["'100%'", qb.selects[1][1]]]
+                qb2.queryIntent = qb.queryIntent
+                qb2.table = qb.table
+                qb.unions.append(qb2)
+
         # qb.addTable("CallLog")
 
         return entities, qb
