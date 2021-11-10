@@ -39,6 +39,14 @@
     margin: 20px 0;
 }
 
+.rvi-microphone {
+    top: 0 !important;
+    padding-top: 0 !important;
+    width: calc(3% * var(--landscape-width)) !important;
+    height: 100% !important;
+    left: 2vw !important;
+}
+
 @keyframes App-logo-spin {
     from {
         transform: rotate(0deg);

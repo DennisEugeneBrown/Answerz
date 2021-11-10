@@ -2,6 +2,8 @@ import json
 from flask import Flask, send_from_directory
 from flask_restful import Api, Resource, reqparse
 from flask_cors import CORS  # comment this on deployment
+from threading import Timer
+import webbrowser
 
 app = Flask(__name__, static_url_path='', static_folder='frontend/build')
 app.config.from_json('config.json')
@@ -36,3 +38,10 @@ def get_tables(path):
 from api.Answerz import Answerz
 
 api.add_resource(Answerz, '/answerz')
+
+
+def open_browser():
+    webbrowser.open_new('http://127.0.0.1:1234')
+
+
+Timer(1, open_browser).start()
