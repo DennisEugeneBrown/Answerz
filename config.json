@@ -61,6 +61,7 @@
           "type": "string",
           "name": "builtin.personName",
           "field": "PhoneWorker",
+          "exact_match": false,
           "joins": null
         },
         {
@@ -110,6 +111,7 @@
           "type": "string",
           "name": "PhoneWorker",
           "field": "PhoneWorker",
+          "exact_match": false,
           "joins": null
         },
         {

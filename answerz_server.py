@@ -179,13 +179,28 @@ class QueryBlock:
 class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
+
         if qb.count_conditions:
             qb.selects = self.processCountConditions(qb,
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
+
+        # if qb.conditions:
+        #     qb.selects[0][1] = ' AND '.join([cond[1].split('.')[-1] + ' = ' + cond[2] for cond in qb.conditions])
+
+        cond_sql = self.renderConditions(qb)
+        if cond_sql:
+            for ix, select in enumerate(qb.selects):
+                if 'Count_' in select[1]:
+                    for ix, sort in enumerate(qb.sorts):
+                        if select[1] == sort[0]:
+                            qb.sorts[ix] = ('[' + cond_sql + ']', sort[1])
+                    qb.selects[ix][1] = cond_sql
+
+            qb.selects[0][1] = cond_sql
+
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
-        cond_sql = self.renderConditions(qb)
         if (cond_sql):
             sql = sql + "\nWHERE " + cond_sql
 
@@ -534,7 +549,7 @@ class AggregationByDescriptionIntentDecoder:
 
         if _groupAction:
             # print('GROUPS:', qb.groups)
-            if _groupAction.lower() in ['group by', 'breakdown by']:
+            if _groupAction.lower() in ['group by', 'breakdown by'] and (_fieldNames or _logicalLabel):
                 for mapped_grouping in mapped_groupings:
                     if mapped_grouping['joins']:
                         qb.joins.extend(tuple(mapped_grouping['joins']))
@@ -1178,6 +1193,24 @@ class LuisIntentProcessor:
         return self.e_decoder_default
 
     def process_entity_list(self, entity_list, query):
+        number_found = None
+        callLengths_found = []
+        for ix, e in enumerate(entity_list):
+            if e['type'] == 'builtin.number':
+                number_found = ix
+            if e['type'] == 'CallLength':
+                callLengths_found.append(ix)
+
+        if callLengths_found and number_found is not None:
+            entity_list[number_found]['type'] = 'CallLength'
+            for callLength_found in reversed(sorted(callLengths_found)):
+                del entity_list[callLength_found]
+
+        elif len(callLengths_found) > 1:
+            for callLength_found in reversed(sorted(callLengths_found)):
+                if 'key' not in entity_list[callLength_found] or entity_list[callLength_found]['key'] != 'number':
+                    del entity_list[callLength_found]
+
         for e in entity_list:
             decoder = self.get_entity_decoder(e)
             if decoder:

@@ -39,7 +39,7 @@ function App() {
         leftOpen: true,
         rightOpen: true,
     });
-    const versionNumber = '2.0.1'
+    const versionNumber = '2.0.2'
 
     const [getInputState, setInputState] = useState('');
 
