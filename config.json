@@ -101,7 +101,7 @@
         },
         {
           "class": "field",
-          "type": "string",
+          "type": "int",
           "name": "ZipCode",
           "field": "ZipCode",
           "joins": null
@@ -237,7 +237,9 @@
             "Domestic Violence": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
-          "default_value": "Yes",
+          "exact_match": false,
+          "default_positive_value": "Yes",
+          "default_negative_value": "No",
           "joins": null
         },
         {
@@ -861,7 +863,9 @@
             "Domestic Violence": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
-          "default_value": "Yes",
+          "exact_match": false,
+          "default_positive_value": "Yes",
+          "default_negative_value": "No",
           "joins": [
             [
               "CallLog3",
@@ -1215,7 +1219,9 @@
             "Domestic Violence": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
-          "default_value": "Yes",
+          "exact_match": false,
+          "default_positive_value": "Yes",
+          "default_negative_value": "No",
           "joins": [
             [
               "CallLog3",
@@ -1616,7 +1622,9 @@
             "Domestic Violence": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
-          "default_value": "Yes",
+          "exact_match": false,
+          "default_positive_value": "Yes",
+          "default_negative_value": "No",
           "joins": [
             [
               "CallLog3",
@@ -1948,7 +1956,9 @@
             "Domestic Violence": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
-          "default_value": "Yes",
+          "exact_match": false,
+          "default_positive_value": "Yes",
+          "default_negative_value": "No",
           "joins": [
             [
               "CallLog3",

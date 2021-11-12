@@ -124,6 +124,7 @@ class QueryBlock:
         self.groups = []
         self.sorts = []
         self.comparators = []
+        self.string_operators = []
         self.is_compare = False
         self.is_cross = False
         self.aggregation = None
@@ -290,6 +291,8 @@ class QueryBlockRenderer:
                 return encodeLHS(lhs) + " > " + encodeRHS(rhs)
             if (op == "gte"):
                 return encodeLHS(lhs) + " >= " + encodeRHS(rhs)
+            if (op == "not"):
+                return encodeLHS(lhs) + " != " + encodeRHS(rhs)
             return op
 
         # Handle the group selects
@@ -465,6 +468,7 @@ class AggregationByDescriptionIntentDecoder:
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
         _comparator_ix, _comparator = self.findEntityByType(entities, "_Comparator")
+        _stringOperator_ix, _stringOperator = self.findEntityByType(entities, "_StringOperators")
 
         _fieldNames = self.findFieldNames(entities)
 
@@ -491,11 +495,21 @@ class AggregationByDescriptionIntentDecoder:
             '<': 'lt',
             '>': 'gt',
             '<=': 'lte',
-            '>=': 'gte'
+            '>=': 'gte',
+            '!=': 'not'
+        }
+
+        string_operators_mapping = {
+            'startsWith': "{} like '{}%'",
+            'endsWith': "{} like '%{}'",
+            'contains': "{} like '%{}%'",
         }
 
         if _comparator:
             qb.comparators.append(comparators_mapping[_comparator])
+
+        if _stringOperator:
+            qb.string_operators.append(string_operators_mapping[_stringOperator])
 
         mapped_groupings = []
         if _groupAction:
@@ -818,7 +832,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block, comparators=None):
+    def decode(self, entity, query_block, comparators=None, string_operators=None):
         # print(entity)
         if 'resolution' in entity:
             if 'values' in entity['resolution']:
@@ -863,12 +877,6 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 entity_value = entity_value.replace(
                     ' County', '').replace(' county', '')
 
-            # if lu['type'] == 'boolean':
-            #     if 'default_value' in lu:
-            #         entity_value = lu['default_value']
-            #     else:
-            #         entity_value = 'YES'
-
             exact_match = True
             if lu and 'exact_match' in lu and lu['exact_match'] == False:
                 exact_match = False
@@ -886,7 +894,14 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 db_values = self.mapValues(tables[0], field_name, entity_value)
                 if (len(db_values) == 1):
 
-                    if exact_match:
+                    if string_operators:
+                        if ("." in field_name):  # already scoped
+                            qb.conditions.append(
+                                [(string_operators[0].format(field_name, entity_value)), '', ''])
+                        else:
+                            qb.conditions.append(
+                                [(string_operators[0].format(tables[0] + "." + field_name, entity_value)), '', ''])
+                    elif exact_match:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
                                 [(comparators[0] if comparators else "eq"), field_name, entity_value])
@@ -929,7 +944,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block, comparators=None):
+    def decode(self, entity, query_block, comparators=None, string_operators=None):
         # print(entity)
         if 'resolution' in entity:
             values = entity["resolution"]["values"]
@@ -953,8 +968,13 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             tables = lu["tables"]
             field_name = lu['field'][entity_value]
 
-            if 'default_value' in lu:
-                entity_value = lu['default_value']
+            if 'not' in comparators:
+                if 'default_negative_value' in lu:
+                    entity_value = lu['default_negative_value']
+                else:
+                    entity_value = 'NO'
+            elif 'default_positive_value' in lu:
+                entity_value = lu['default_positive_value']
             else:
                 entity_value = 'YES'
 
@@ -973,8 +993,14 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
 
             db_values = self.mapValues(tables[0], field_name, entity_value)
             if (len(db_values) == 1):
-
-                if exact_match:
+                if string_operators:
+                    if ("." in field_name):  # already scoped
+                        qb.conditions.append(
+                            [(string_operators[0].format(field_name, entity_value)), '', ''])
+                    else:
+                        qb.conditions.append(
+                            [(string_operators[0].format(tables[0] + "." + field_name, entity_value)), '', ''])
+                elif exact_match:
                     if ("." in field_name):  # already scoped
                         qb.conditions.append(["eq", field_name, entity_value])
                     else:
@@ -1012,7 +1038,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None, comparators=None):
+    def decode(self, entity, query_block=None, comparators=None, string_operators=None):
         value = entity['entity']
 
         if (value["type"] == "daterange"):
@@ -1084,7 +1110,7 @@ class DateEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None, comparators=None):
+    def decode(self, entity, query_block=None, comparators=None, string_operators=None):
         values = entity["resolution"]["values"]
 
         if (len(values) == 1):
@@ -1215,10 +1241,7 @@ class LuisIntentProcessor:
             decoder = self.get_entity_decoder(e)
             if decoder:
                 print('Decoding {}...'.format(e))
-                if query.comparators:
-                    qb = decoder.decode(e, query, comparators=query.comparators)
-                else:
-                    qb = decoder.decode(e, query)
+                qb = decoder.decode(e, query, comparators=query.comparators, string_operators=query.string_operators)
 
                 query.merge(qb)
 
@@ -1278,8 +1301,24 @@ class LuisIntentProcessor:
         geography_entities_found = []
         for type in geography_entity_types:
             for entity in entity_list:
+                # for entity_ in geography_entities_found:
+                #     if entity['startIndex'] >= entity_['startIndex'] and entity['startIndex'] <= entity_[
+                #         'startIndex'] + entity_['length']:
+                #         continue
                 if entity['type'] == type:
                     geography_entities_found.append(entity)
+
+        # geography_entities_found_ = []
+        for ix, entity in enumerate(geography_entities_found):
+            for ix_, entity_ in enumerate(geography_entities_found):
+                if ix == ix_:
+                    continue
+                if entity['text'] != entity_['text'] and entity['startIndex'] >= entity_['startIndex'] and entity[
+                    'startIndex'] <= entity_[
+                    'startIndex'] + entity_['length']:
+                    entity_list.remove(entity)
+                    geography_entities_found.pop(ix)
+                    break
 
         date_entities_found = []
         number_entities_found = []
