@@ -39,7 +39,9 @@ function App() {
         leftOpen: true,
         rightOpen: true,
     });
-    const versionNumber = '2.0.3'
+
+    const [getPrevQuery, setPrevQuery] = useState('')
+    const versionNumber = '2.0.4'
 
     const [getInputState, setInputState] = useState('');
 
@@ -69,7 +71,10 @@ function App() {
     const handleSubmit = event => {
         event.preventDefault();
         setSubmitting(true);
-        axios.post('http://localhost:1234/answerz', {'text': getInputState})
+        axios.post('http://localhost:1234/answerz', {
+            'text': getInputState,
+            'prev_query': (getPrevQuery.toLowerCase().includes('group by') || getPrevQuery.toLowerCase().includes('down by')) ? '' : getPrevQuery
+        })
             .then(response => {
                 console.log("Responded", response)
                 setGetTable(response)
@@ -79,6 +84,7 @@ function App() {
             setSubmitting(false);
             setError(true);
         });
+        setPrevQuery(getInputState);
     }
 
     const handleChange = event => {
@@ -269,6 +275,11 @@ function App() {
                                             <div className='table-class'> {getTable.data.queries[index]} <JsonToTable
                                                 json={value}/><Button
                                                 onClick={handleOpen}>Table Properties</Button></div>)}
+                                        {getTable.data.other_result ?
+                                            <div className='table-class'><JsonToTable
+                                                json={getTable.data.other_result}/></div>
+                                            :
+                                            ''}
                                         <Modal
                                             open={open}
                                             onClose={handleClose}

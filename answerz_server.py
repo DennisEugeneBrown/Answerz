@@ -129,6 +129,7 @@ class QueryBlock:
         self.is_cross = False
         self.aggregation = None
         self.unions = []
+        self.distinct_values_query = None
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -1176,6 +1177,7 @@ class LuisIntentProcessor:
 
     def __init__(self, data_map):
         # Intent Decoders
+        self.data_map = data_map
         self.i_decoders = {}
         self.i_decoders["agg-elements-by-description"] = AggregationByDescriptionIntentDecoder(
             data_map)
@@ -1218,6 +1220,15 @@ class LuisIntentProcessor:
 
         return self.e_decoder_default
 
+    def generateDistinctValuesQuery(self, qb):
+        new_qb = QueryBlock()
+        new_qb.table = qb.table
+        new_qb.conditions = [cond for cond in qb.conditions if cond[0] == 'lk' or ' like ' in cond[0]]
+        field_name = new_qb.conditions[0][1] if new_qb.conditions[0][1] else new_qb.conditions[0][0].split(' like ')[0]
+        new_qb.selects = [['COUNT(*)', field_name]]
+        new_qb.groups = [[field_name, field_name]]
+        return new_qb
+
     def process_entity_list(self, entity_list, query):
         number_found = None
         callLengths_found = []
@@ -1247,6 +1258,9 @@ class LuisIntentProcessor:
 
             elif not e["type"].startswith("_"):
                 print("No decoder for Entity", e["type"])
+
+        if [cond for cond in query.conditions if cond[0] == 'lk' or ' like ' in cond[0]]:
+            query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
         if query.is_compare:
             column_counter = defaultdict(int)
@@ -1313,9 +1327,8 @@ class LuisIntentProcessor:
             for ix_, entity_ in enumerate(geography_entities_found):
                 if ix == ix_:
                     continue
-                if entity['text'] != entity_['text'] and entity['startIndex'] >= entity_['startIndex'] and entity[
-                    'startIndex'] <= entity_[
-                    'startIndex'] + entity_['length']:
+                if entity['text'] != entity_['text'] and entity['startIndex'] >= entity_['startIndex'] \
+                        and entity['startIndex'] + entity['length'] <= entity_['startIndex'] + entity_['length']:
                     entity_list.remove(entity)
                     geography_entities_found.pop(ix)
                     break
@@ -1497,10 +1510,13 @@ class AnswerzProcessor():
         pprint(data)
         return data
 
-    def run_query(self, text):
+    def run_query(self, text, prev_query=None):
         q = self.interpret(text)
         # pprint(q)
-        pqs, union = self.intentProcessor.prepare_query(q, self.prev_query, self.queryProcessor)
+        if prev_query:
+            prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None, self.queryProcessor)
+            prev_query = prev_query[0]
+        pqs, union = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         self.update_prev_query(pqs[0])  # TODO: fix bug here
         results = []
         if union:
@@ -1514,7 +1530,9 @@ class AnswerzProcessor():
         else:
             for pq in pqs:
                 result, sql = self.queryProcessor.generate_and_run_query(pq)
-                results.append((result, sql))
+                results.append({'result': result, 'sql': sql,
+                                'distinct_values': self.queryProcessor.generate_and_run_query(
+                                    pq.distinct_values_query) if pq.distinct_values_query else None})
         return results
 
     def run_sql_query(self, sql, headers):

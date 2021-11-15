@@ -17,19 +17,26 @@ class Answerz(Resource):
             app.app.config['DATAMAP'], app.app.config['DB'], app.app.config['LUIS'])
         parser = reqparse.RequestParser()
         parser.add_argument('text', type=str)
+        parser.add_argument('prev_query', type=str)
         args = parser.parse_args()
 
         text = args['text']
+        prev_query = args['prev_query']
         print(text)
-        results = ap.run_query(text)
+        results = ap.run_query(text, prev_query=prev_query)
         sql_lower = []
         out = []
-        for result, sql in results:
+        distinct_values = None
+        for res in results:
+            result = res['result']
+            sql = res['sql']
+            distinct_values = res['distinct_values']
             if sql.lower() in sql_lower:
                 continue
             sql_lower.append(sql.lower())
             out.append(result['Output'])
             print(result['Output'])
 
-        final_ret = {"status": "Success", "message": out, "queries": sql_lower}
+        final_ret = {"status": "Success", "message": out, "queries": sql_lower,
+                     "other_result": distinct_values[0]['Output'] if distinct_values else ''}
         return final_ret
