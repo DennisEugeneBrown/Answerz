@@ -44,7 +44,7 @@ function App() {
     const [getInputState, setInputState] = useState('');
 
     useEffect(() => {
-        axios.get('http://localhost:5000/columns').then(response => {
+        axios.get('http://localhost:1234/columns').then(response => {
             setColumns(response)
         }).catch(error => {
             console.log(error)
@@ -53,7 +53,7 @@ function App() {
 
 
     useEffect(() => {
-        axios.get('http://localhost:5000/tables').then(response => {
+        axios.get('http://localhost:1234/tables').then(response => {
             setDataTables(response)
         }).catch(error => {
             console.log(error)
