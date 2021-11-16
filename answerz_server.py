@@ -210,7 +210,7 @@ class QueryBlockRenderer:
         if (group_sql):
             sql = sql + "\nGROUP BY " + group_sql
 
-        if qb.unions:
+        if qb.unions and len(qb.groups) < 2:
             qbr = QueryBlockRenderer()
             qb2 = qbr.render(qb.unions[0])
             sql += ' UNION ' + qb2
@@ -446,18 +446,26 @@ class AggregationByDescriptionIntentDecoder:
     def __init__(self, data_map):
         self.data_map = data_map
 
-    def findEntityByType(self, entities, type_name):
+    def findEntityByType(self, entities, type_name, return_entity=False, return_many=False):
+        ret = []
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e['entity']
+                if return_many:
+                    ret.append((ix, e if return_entity else e['entity']))
+                else:
+                    return ix, e if return_entity else e['entity']
+        if return_many:
+            return ret
         return -1, None
 
     def findFieldNames(self, entities):
         fieldNames = []
+        fieldName_entities = []
         for e in entities:
             if (e["type"] == '_FieldName'):
                 fieldNames.append(e['entity'])
-        return fieldNames
+                fieldName_entities.append(e)
+        return fieldNames, fieldName_entities
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
 
@@ -467,26 +475,31 @@ class AggregationByDescriptionIntentDecoder:
         _element_ix, _element = self.findEntityByType(entities, "_DataElement")
         _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
-        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
-        _comparator_ix, _comparator = self.findEntityByType(entities, "_Comparator")
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction", return_entity=True)
+        _comparators = self.findEntityByType(entities, "_Comparator", return_entity=True,
+                                             return_many=True)
         _stringOperator_ix, _stringOperator = self.findEntityByType(entities, "_StringOperators")
 
-        _fieldNames = self.findFieldNames(entities)
+        _fieldNames, _fieldName_entities = self.findFieldNames(entities)
 
         data_map_repo = DataMapRepo(self.data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
-        update_number = None
-        for field_name in _fieldNames:
+        numbers = []
+        for ix, field_name in enumerate(_fieldNames):
             for dim in mapped_element["Dimensions"]:
                 if dim["name"].lower() == field_name.lower() and dim['type'] == 'int':
-                    update_number = dim["name"]
+                    numbers.append((dim["name"], ix))
 
-        if update_number:
+        for number, num_entity_ix in numbers:
             for ix, entity in enumerate(entities):
-                if entity['type'] == 'builtin.number':
-                    entities[ix]['type'] = update_number
+                if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
+                    'startIndex']:
+                    entities[ix]['type'] = number
+        for ix, entity in enumerate(entities):
+            if entity['type'] == 'builtin.number':
+                entities[ix]['type'] = 'age'
 
         # print('field names:', _fieldNames)
 
@@ -506,19 +519,22 @@ class AggregationByDescriptionIntentDecoder:
             'contains': "{} like '%{}%'",
         }
 
-        if _comparator:
-            qb.comparators.append(comparators_mapping[_comparator])
+        for _comparatorIx, _comparatorEntity in _comparators:
+            qb.comparators.append((comparators_mapping[_comparatorEntity['entity']], _comparatorEntity))
 
         if _stringOperator:
             qb.string_operators.append(string_operators_mapping[_stringOperator])
 
         mapped_groupings = []
         if _groupAction:
-            if _groupAction.lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
+            if _groupAction['entity'].lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
                 if _fieldNames:
-                    _, mapped_grouping = data_map_repo.findGrouping(
-                        _element, _fieldNames[-1])
-                    mapped_groupings = [mapped_grouping]
+                    for ix, _fieldName in enumerate(_fieldNames):
+                        if _fieldName_entities[ix]['startIndex'] > _groupAction['startIndex']:
+                            _, mapped_grouping = data_map_repo.findGrouping(
+                                _element, _fieldName)
+                            mapped_groupings = [mapped_grouping]
+                            break
                 elif _logicalLabel:
                     _, mapped_grouping = data_map_repo.findGrouping(
                         _element, _logicalLabel)
@@ -527,7 +543,7 @@ class AggregationByDescriptionIntentDecoder:
                 else:
                     # mapped_groupings = data_map_repo.getAllGroupings(_element)
                     pass
-            elif _groupAction.lower() == 'compare':
+            elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
 
             # print(mapped_groupings)
@@ -564,7 +580,8 @@ class AggregationByDescriptionIntentDecoder:
 
         if _groupAction:
             # print('GROUPS:', qb.groups)
-            if _groupAction.lower() in ['group by', 'breakdown by'] and (_fieldNames or _logicalLabel):
+            if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
+                    _fieldNames or _logicalLabel):
                 for mapped_grouping in mapped_groupings:
                     if mapped_grouping['joins']:
                         qb.joins.extend(tuple(mapped_grouping['joins']))
@@ -833,7 +850,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block, comparators=None, string_operators=None):
+    def decode(self, entity, query_block, comparator=None, string_operators=None):
         # print(entity)
         if 'resolution' in entity:
             if 'values' in entity['resolution']:
@@ -905,10 +922,10 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     elif exact_match:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
-                                [(comparators[0] if comparators else "eq"), field_name, entity_value])
+                                [(comparator if comparator else "eq"), field_name, entity_value])
                         else:
                             qb.conditions.append(
-                                [(comparators[0] if comparators else "eq"), tables[0] + "." + field_name, entity_value])
+                                [(comparator if comparator else "eq"), tables[0] + "." + field_name, entity_value])
                     else:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
@@ -945,7 +962,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
         return [entity_value]
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block, comparators=None, string_operators=None):
+    def decode(self, entity, query_block, comparator=None, string_operators=None):
         # print(entity)
         if 'resolution' in entity:
             values = entity["resolution"]["values"]
@@ -969,7 +986,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             tables = lu["tables"]
             field_name = lu['field'][entity_value]
 
-            if 'not' in comparators:
+            if 'not' in comparator:
                 if 'default_negative_value' in lu:
                     entity_value = lu['default_negative_value']
                 else:
@@ -1039,7 +1056,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None, comparators=None, string_operators=None):
+    def decode(self, entity, query_block=None, comparator=None, string_operators=None):
         value = entity['entity']
 
         if (value["type"] == "daterange"):
@@ -1063,8 +1080,9 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
             qb = QueryBlock(query_block.queryIntent)
 
-            qb.conditions.append(
-                ["gte", field_name, entity_value["start"]])
+            if "start" in entity_value:
+                qb.conditions.append(
+                    ["gte", field_name, entity_value["start"]])
             if "end" in entity_value:
                 qb.conditions.append(
                     ["lt", field_name, entity_value["end"]])
@@ -1111,7 +1129,7 @@ class DateEntityDecoder(EntityDecoderBase):
         self.data_map = data_map
 
     # Takes the entity to decode + a potential query_block to augment
-    def decode(self, entity, query_block=None, comparators=None, string_operators=None):
+    def decode(self, entity, query_block=None, comparator=None, string_operators=None):
         values = entity["resolution"]["values"]
 
         if (len(values) == 1):
@@ -1252,7 +1270,11 @@ class LuisIntentProcessor:
             decoder = self.get_entity_decoder(e)
             if decoder:
                 print('Decoding {}...'.format(e))
-                qb = decoder.decode(e, query, comparators=query.comparators, string_operators=query.string_operators)
+                comparator = None
+                for comp in query.comparators:
+                    if comp[1]['startIndex'] < e['startIndex']:
+                        comparator = comp[0]
+                qb = decoder.decode(e, query, comparator=comparator, string_operators=query.string_operators)
 
                 query.merge(qb)
 
@@ -1343,7 +1365,8 @@ class LuisIntentProcessor:
 
         for date_entity in date_entities_found:
             for number_entity in number_entities_found:
-                if date_entity['text'] == number_entity['text']:
+                if date_entity['startIndex'] + date_entity['length'] == number_entity['startIndex'] + number_entity[
+                    'length']:
                     entity_list.remove(number_entity)
 
         print('There are {} geography entities.'.format(
@@ -1367,9 +1390,9 @@ class LuisIntentProcessor:
         for ent_ix, entity in enumerate(entity_list):
             start_index = entity['startIndex']
             if start_index in ix_to_ix:
-                if entity_list[ix_to_ix[start_index]]['type'].startswith('_'):
+                if entity_list[ix_to_ix[start_index]]['type'].startswith('_') and not entity['type'].startswith('_'):
                     to_remove.append(ent_ix)
-                elif entity['type'].startswith('_'):
+                elif entity['type'].startswith('_') and not entity_list[ix_to_ix[start_index]]['type'].startswith('_'):
                     to_remove.append(ix_to_ix[start_index])
                     ix_to_ix[start_index] = ent_ix
             else:
@@ -1431,6 +1454,12 @@ class LuisIntentProcessor:
                 entity_list, query = intent_decoder.decode(
                     this_intent, entity_list, prev_q=prev_q)
                 query = self.process_entity_list(entity_list, query)
+                grouping_fields = [field[0].lower() for field in query.groups]
+                condition_fields = [cond[1].lower() for cond in query.conditions]
+                for entity in entity_list:
+                    if entity['type'] == '_FieldName' and entity['text'].lower() not in grouping_fields and not any(
+                            [cond_field for cond_field in condition_fields if entity['text'].lower() in cond_field[1]]):
+                        query.groups.append((entity['text'], entity['text']))
                 queries.append(query)
 
         return queries, union
@@ -1514,12 +1543,13 @@ class AnswerzProcessor():
         q = self.interpret(text)
         # pprint(q)
         if prev_query:
-            prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None, self.queryProcessor)
+            prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
+                                                                   self.queryProcessor)
             prev_query = prev_query[0]
         pqs, union = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         self.update_prev_query(pqs[0])  # TODO: fix bug here
         results = []
-        if union:
+        if union and len(pqs[0].groups) < 2:
             sqls = []
             for pq in pqs:
                 sql = self.queryProcessor.generate_query(pq)
