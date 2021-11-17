@@ -193,9 +193,9 @@ class QueryBlockRenderer:
         if cond_sql:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
-                    for ix, sort in enumerate(qb.sorts):
+                    for sort_ix, sort in enumerate(qb.sorts):
                         if select[1] == sort[0]:
-                            qb.sorts[ix] = ('[' + cond_sql + ']', sort[1])
+                            qb.sorts[sort_ix] = ('[' + cond_sql + ']', sort[1])
                     qb.selects[ix][1] = cond_sql
 
             qb.selects[0][1] = cond_sql
@@ -492,16 +492,19 @@ class AggregationByDescriptionIntentDecoder:
                 if dim["name"].lower() == field_name.lower() and dim['type'] == 'int':
                     numbers.append((dim["name"], ix))
 
-        for number, num_entity_ix in numbers:
-            for ix, entity in enumerate(entities):
-                if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
-                    'startIndex']:
-                    entities[ix]['type'] = number
+        number_type_entities = [(entity, ix) for ix, entity in enumerate(entities) if
+                                entity['type'] == 'builtin.number']
+        if len(numbers) == 1 and len(number_type_entities) == 1:
+            entities[number_type_entities[0][1]]['type'] = numbers[0][0]
+        else:
+            for number, num_entity_ix in numbers:
+                for ix, entity in enumerate(entities):
+                    if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
+                        'startIndex']:
+                        entities[ix]['type'] = number
         for ix, entity in enumerate(entities):
             if entity['type'] == 'builtin.number':
                 entities[ix]['type'] = 'age'
-
-        # print('field names:', _fieldNames)
 
         qb = QueryBlock((_element, _aggregation))
 
@@ -513,6 +516,11 @@ class AggregationByDescriptionIntentDecoder:
             '!=': 'not'
         }
 
+        comparators_position_mapping = {
+            'or more': 'after',
+            'or less': 'after'
+        }
+
         string_operators_mapping = {
             'startsWith': "{} like '{}%'",
             'endsWith': "{} like '%{}'",
@@ -520,6 +528,8 @@ class AggregationByDescriptionIntentDecoder:
         }
 
         for _comparatorIx, _comparatorEntity in _comparators:
+            _comparatorEntity['position'] = comparators_position_mapping[_comparatorEntity['text'].lower()] if \
+                _comparatorEntity['text'].lower() in comparators_position_mapping else 'before'
             qb.comparators.append((comparators_mapping[_comparatorEntity['entity']], _comparatorEntity))
 
         if _stringOperator:
@@ -533,8 +543,8 @@ class AggregationByDescriptionIntentDecoder:
                         if _fieldName_entities[ix]['startIndex'] > _groupAction['startIndex']:
                             _, mapped_grouping = data_map_repo.findGrouping(
                                 _element, _fieldName)
-                            mapped_groupings = [mapped_grouping]
-                            break
+                            mapped_groupings.append(mapped_grouping)
+                            # break
                 elif _logicalLabel:
                     _, mapped_grouping = data_map_repo.findGrouping(
                         _element, _logicalLabel)
@@ -545,10 +555,6 @@ class AggregationByDescriptionIntentDecoder:
                     pass
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
-
-            # print(mapped_groupings)
-
-        # print(mapped_grouping)
 
         for table in mapped_aggregation["tables"]:
             if (type(table) == str):
@@ -593,11 +599,13 @@ class AggregationByDescriptionIntentDecoder:
                             (mapped_grouping['field'], mapped_grouping['name']))
                     if 'sort_fields' in mapped_grouping:
                         for sort_field in mapped_grouping['sort_fields']:
-                            qb.sorts.append(sort_field)
+                            if qb.sorts and sort_field not in qb.sorts:
+                                qb.sorts.append(sort_field)
                             if sort_field[0] != mapped_grouping['field']:
                                 qb.groups.append((sort_field[0], sort_field[0]))
                     else:
-                        qb.sorts.append((qb.selects[0][-1], 'DESC'))
+                        if qb.sorts and (qb.selects[0][-1], 'DESC') not in qb.sorts:
+                            qb.sorts.append((qb.selects[0][-1], 'DESC'))
                 qb.selects.append([
                     "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                         count=qb.selects[0][0]),
@@ -795,11 +803,13 @@ class BreakdownByIntentDecoder:
             (mapped_grouping['field'], mapped_grouping['name']))
         if 'sort_fields' in mapped_grouping:
             for sort_field in mapped_grouping['sort_fields']:
-                qb.sorts.append(sort_field)
+                if qb.sorts and sort_field not in qb.sorts:
+                    qb.sorts.append(sort_field)
                 if sort_field[0] != mapped_grouping['field']:
                     qb.groups.append((sort_field[0], sort_field[0]))
         else:
-            qb.sorts.append((mapped_grouping['field'], 'ASC'))
+            if qb.sorts and (mapped_grouping['field'], 'ASC') not in qb.sorts:
+                qb.sorts.append((mapped_grouping['field'], 'ASC'))
 
         return entities, qb
 
@@ -986,7 +996,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             tables = lu["tables"]
             field_name = lu['field'][entity_value]
 
-            if 'not' in comparator:
+            if comparator and 'not' in comparator:
                 if 'default_negative_value' in lu:
                     entity_value = lu['default_negative_value']
                 else:
@@ -1272,7 +1282,8 @@ class LuisIntentProcessor:
                 print('Decoding {}...'.format(e))
                 comparator = None
                 for comp in query.comparators:
-                    if comp[1]['startIndex'] < e['startIndex']:
+                    if (comp[1]['position'] == 'before' and comp[1]['startIndex'] < e['startIndex']) \
+                            or (comp[1]['position'] == 'after' and comp[1]['startIndex'] > e['startIndex']):
                         comparator = comp[0]
                 qb = decoder.decode(e, query, comparator=comparator, string_operators=query.string_operators)
 
@@ -1456,10 +1467,10 @@ class LuisIntentProcessor:
                 query = self.process_entity_list(entity_list, query)
                 grouping_fields = [field[0].lower() for field in query.groups]
                 condition_fields = [cond[1].lower() for cond in query.conditions]
-                for entity in entity_list:
-                    if entity['type'] == '_FieldName' and entity['text'].lower() not in grouping_fields and not any(
-                            [cond_field for cond_field in condition_fields if entity['text'].lower() in cond_field[1]]):
-                        query.groups.append((entity['text'], entity['text']))
+                # for entity in entity_list:
+                #     if entity['type'] == '_FieldName' and entity['entity'].lower() not in grouping_fields and not any(
+                #             [cond_field for cond_field in condition_fields if entity['entity'].lower() in cond_field[1]]):
+                #         query.groups.append((entity['entity'], entity['entity']))
                 queries.append(query)
 
         return queries, union
@@ -1493,6 +1504,16 @@ class QueryProcessor:
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
             rows.append(row_dictionary)
+        # rows = {}
+        # rows[headers[0][0]] = {}
+        # for ix, row in enumerate(result):
+        #     row_dict= {}
+        #     for col_ix, col in enumerate(headers):
+        #         row_dict[col[1]] = row[col_ix]
+        #     if row[0] in rows[headers[0][0]]:
+        #         rows[headers[0][0]][row[0]].append(row_dict)
+        #     else:
+        #         rows[headers[0][0]][row[0]] = [row_dict]
         output = {'Output': rows}
         return output
 

@@ -73,7 +73,7 @@ function App() {
         setSubmitting(true);
         axios.post('http://localhost:1234/answerz', {
             'text': getInputState,
-            'prev_query': (getPrevQuery.toLowerCase().includes('group by') || getPrevQuery.toLowerCase().includes('down by')) ? '' : getPrevQuery
+            'prev_query': (getInputState.toLowerCase().includes('group by') || getInputState.toLowerCase().includes('down by') || getInputState.toLowerCase().includes('out by')) ? getPrevQuery : ''
         })
             .then(response => {
                 console.log("Responded", response)

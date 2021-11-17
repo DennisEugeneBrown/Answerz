@@ -218,6 +218,13 @@
         {
           "class": "field",
           "type": "int",
+          "name": "NumberOfChildrenInHousehold",
+          "field": "NumberOfChildrenInHousehold",
+          "joins": null
+        },
+        {
+          "class": "field",
+          "type": "int",
           "name": "YearsServed",
           "field": "YearsServed",
           "joins": null
@@ -376,7 +383,7 @@
         },
         {
           "class": "field",
-          "type": "string",
+          "type": "int",
           "name": "NumberOfChildrenInHousehold",
           "field": "NumberOfChildrenInHousehold",
           "joins": null
