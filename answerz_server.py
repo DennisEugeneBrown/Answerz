@@ -474,7 +474,7 @@ class AggregationByDescriptionIntentDecoder:
 
         _element_ix, _element = self.findEntityByType(entities, "_DataElement")
         _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
-        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction", return_entity=True)
         _comparators = self.findEntityByType(entities, "_Comparator", return_entity=True,
                                              return_many=True)
@@ -713,7 +713,7 @@ class AggregationByLogicalYesDecoder:
 
         _element_ix, _element = self.findEntityByType(entities, "_DataElement")
         _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
-        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
         _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
 
@@ -780,7 +780,7 @@ class BreakdownByIntentDecoder:
 
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
         _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
-        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "LogicalLabel")
+        _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
 
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
@@ -1223,7 +1223,7 @@ class LuisIntentProcessor:
             data_map)
         self.e_decoders["builtin.datetimeV2.date"] = DateEntityDecoder(
             data_map)
-        self.e_decoders["LogicalLabel"] = LogicalLabelEntityDecoder(
+        self.e_decoders["_LogicalLabel"] = LogicalLabelEntityDecoder(
             data_map)
 
     def get_intent_decoder(self, intent_name):
@@ -1465,8 +1465,8 @@ class LuisIntentProcessor:
                 entity_list, query = intent_decoder.decode(
                     this_intent, entity_list, prev_q=prev_q)
                 query = self.process_entity_list(entity_list, query)
-                grouping_fields = [field[0].lower() for field in query.groups]
-                condition_fields = [cond[1].lower() for cond in query.conditions]
+                # grouping_fields = [field[0].lower() for field in query.groups]
+                # condition_fields = [cond[1].lower() for cond in query.conditions]
                 # for entity in entity_list:
                 #     if entity['type'] == '_FieldName' and entity['entity'].lower() not in grouping_fields and not any(
                 #             [cond_field for cond_field in condition_fields if entity['entity'].lower() in cond_field[1]]):
@@ -1583,7 +1583,8 @@ class AnswerzProcessor():
                 result, sql = self.queryProcessor.generate_and_run_query(pq)
                 results.append({'result': result, 'sql': sql,
                                 'distinct_values': self.queryProcessor.generate_and_run_query(
-                                    pq.distinct_values_query) if pq.distinct_values_query else None})
+                                    pq.distinct_values_query) if pq.distinct_values_query else None,
+                                'follow_up': True if prev_query else False})
         return results
 
     def run_sql_query(self, sql, headers):

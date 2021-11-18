@@ -232,16 +232,16 @@
         {
           "class": "field",
           "type": "boolean",
-          "name": "LogicalLabel",
+          "name": "_LogicalLabel",
           "field": {
-            "Vetran": "WhetherVeteran",
-            "Veteran with children": "WhetherVetWithChildren",
-            "With place to stay": "WhetherSafePlaceToStay",
-            "interested in calfresh": "WhetherInterestedInCalFresh",
-            "interested in tax prep": "WhetherInterestedInTaxPrep",
-            "combat veteran": "WhetherCombatVet",
-            "has children under 18": "WhetherHasChildrenUnder18",
-            "Domestic Violence": "WhetherDVCall",
+            "WhetherVeteran": "WhetherVeteran",
+            "WhetherVetWithChildren": "WhetherVetWithChildren",
+            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
+            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
+            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
+            "WhetherCombatVet": "WhetherCombatVet",
+            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
+            "WhetherDVCall": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
@@ -274,7 +274,7 @@
         {
           "class": "field",
           "type": "int",
-          "name": "Call Length",
+          "name": "CallLength",
           "field": "CallLength",
           "joins": null
         },
@@ -332,7 +332,7 @@
         {
           "class": "field",
           "type": "string",
-          "name": "Domestic Violence",
+          "name": "WhetherDVCall",
           "field": "WhetherDVCall",
           "joins": null
         },
@@ -391,14 +391,14 @@
         {
           "class": "field",
           "type": "string",
-          "name": "Vetran",
+          "name": "WhetherVeteran",
           "field": "WhetherVeteran",
           "joins": null
         },
         {
           "class": "field",
           "type": "string",
-          "name": "Veteran with children",
+          "name": "WhetherVetWithChildren",
           "field": "WhetherVetWithChildren",
           "joins": null
         },
@@ -419,7 +419,7 @@
         {
           "class": "field",
           "type": "string",
-          "name": "With place to stay",
+          "name": "WhetherSafePlaceToStay",
           "field": "WhetherSafePlaceToStay",
           "joins": null
         },
@@ -461,21 +461,21 @@
         {
           "class": "field",
           "type": "string",
-          "name": "interested in calfresh",
+          "name": "WhetherInterestedInCalFresh",
           "field": "WhetherInterestedInCalFresh",
           "joins": null
         },
         {
           "class": "field",
           "type": "string",
-          "name": "interested in tax prep",
+          "name": "WhetherInterestedInTaxPrep",
           "field": "WhetherInterestedInTaxPrep",
           "joins": null
         },
         {
           "class": "field",
           "type": "string",
-          "name": "combat veteran",
+          "name": "WhetherCombatVet",
           "field": "WhetherCombatVet",
           "joins": null
         },
@@ -489,7 +489,7 @@
         {
           "class": "field",
           "type": "string",
-          "name": "has children under 18",
+          "name": "WhetherHasChildrenUnder18",
           "field": "WhetherHasChildrenUnder18",
           "joins": null
         },
@@ -858,16 +858,16 @@
         {
           "class": "field",
           "type": "boolean",
-          "name": "LogicalLabel",
+          "name": "_LogicalLabel",
           "field": {
-            "Vetran": "WhetherVeteran",
-            "Veteran with children": "WhetherVetWithChildren",
-            "With place to stay": "WhetherSafePlaceToStay",
-            "interested in calfresh": "WhetherInterestedInCalFresh",
-            "interested in tax prep": "WhetherInterestedInTaxPrep",
-            "combat veteran": "WhetherCombatVet",
-            "has children under 18": "WhetherHasChildrenUnder18",
-            "Domestic Violence": "WhetherDVCall",
+            "WhetherVeteran": "WhetherVeteran",
+            "WhetherVetWithChildren": "WhetherVetWithChildren",
+            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
+            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
+            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
+            "WhetherCombatVet": "WhetherCombatVet",
+            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
+            "WhetherDVCall": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
@@ -1214,16 +1214,16 @@
         {
           "class": "field",
           "type": "boolean",
-          "name": "LogicalLabel",
+          "name": "_LogicalLabel",
           "field": {
-            "Vetran": "WhetherVeteran",
-            "Veteran with children": "WhetherVetWithChildren",
-            "With place to stay": "WhetherSafePlaceToStay",
-            "interested in calfresh": "WhetherInterestedInCalFresh",
-            "interested in tax prep": "WhetherInterestedInTaxPrep",
-            "combat veteran": "WhetherCombatVet",
-            "has children under 18": "WhetherHasChildrenUnder18",
-            "Domestic Violence": "WhetherDVCall",
+            "WhetherVeteran": "WhetherVeteran",
+            "WhetherVetWithChildren": "WhetherVetWithChildren",
+            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
+            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
+            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
+            "WhetherCombatVet": "WhetherCombatVet",
+            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
+            "WhetherDVCall": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
@@ -1617,16 +1617,16 @@
         {
           "class": "field",
           "type": "boolean",
-          "name": "LogicalLabel",
+          "name": "_LogicalLabel",
           "field": {
-            "Vetran": "WhetherVeteran",
-            "Veteran with children": "WhetherVetWithChildren",
-            "With place to stay": "WhetherSafePlaceToStay",
-            "interested in calfresh": "WhetherInterestedInCalFresh",
-            "interested in tax prep": "WhetherInterestedInTaxPrep",
-            "combat veteran": "WhetherCombatVet",
-            "has children under 18": "WhetherHasChildrenUnder18",
-            "Domestic Violence": "WhetherDVCall",
+            "WhetherVeteran": "WhetherVeteran",
+            "WhetherVetWithChildren": "WhetherVetWithChildren",
+            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
+            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
+            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
+            "WhetherCombatVet": "WhetherCombatVet",
+            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
+            "WhetherDVCall": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
@@ -1951,16 +1951,16 @@
         {
           "class": "field",
           "type": "boolean",
-          "name": "LogicalLabel",
+          "name": "_LogicalLabel",
           "field": {
-            "Vetran": "WhetherVeteran",
-            "Veteran with children": "WhetherVetWithChildren",
-            "With place to stay": "WhetherSafePlaceToStay",
-            "interested in calfresh": "WhetherInterestedInCalFresh",
-            "interested in tax prep": "WhetherInterestedInTaxPrep",
-            "combat veteran": "WhetherCombatVet",
-            "has children under 18": "WhetherHasChildrenUnder18",
-            "Domestic Violence": "WhetherDVCall",
+            "WhetherVeteran": "WhetherVeteran",
+            "WhetherVetWithChildren": "WhetherVetWithChildren",
+            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
+            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
+            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
+            "WhetherCombatVet": "WhetherCombatVet",
+            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
+            "WhetherDVCall": "WhetherDVCall",
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,

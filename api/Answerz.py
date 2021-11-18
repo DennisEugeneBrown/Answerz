@@ -27,7 +27,10 @@ class Answerz(Resource):
         sql_lower = []
         out = []
         distinct_values = None
+        follow_up = False
         for res in results:
+            if res['follow_up']:
+                follow_up = True
             result = res['result']
             sql = res['sql']
             distinct_values = res['distinct_values']
@@ -38,5 +41,5 @@ class Answerz(Resource):
             print(result['Output'])
 
         final_ret = {"status": "Success", "message": out, "queries": sql_lower,
-                     "other_result": distinct_values[0]['Output'] if distinct_values else ''}
+                     "other_result": distinct_values[0]['Output'] if distinct_values else '', 'follow_up': follow_up}
         return final_ret

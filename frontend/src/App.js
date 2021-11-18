@@ -41,7 +41,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.6'
+    const versionNumber = '2.0.7'
 
     const [getInputState, setInputState] = useState('');
 
@@ -72,7 +72,7 @@ function App() {
         event.preventDefault();
         setSubmitting(true);
         axios.post('http://localhost:1234/answerz', {
-            'text': getInputState,
+            'text': getInputState.replace('  ', ' '),
             'prev_query': (getInputState.toLowerCase().includes('group by') || getInputState.toLowerCase().includes('down by') || getInputState.toLowerCase().includes('out by')) ? getPrevQuery : ''
         })
             .then(response => {
@@ -80,11 +80,14 @@ function App() {
                 setGetTable(response)
                 setSubmitting(false);
                 setError(false);
+                if (!response.data.follow_up) {
+                    console.log('Updating prev query..')
+                    setPrevQuery(getInputState);
+                }
             }).catch((error) => {
             setSubmitting(false);
             setError(true);
         });
-        setPrevQuery(getInputState);
     }
 
     const handleChange = event => {
@@ -92,7 +95,7 @@ function App() {
         //     name: event.target.name,
         //     value: event.target.value,
         // });
-        setInputState(event.target.value);
+        setInputState(event.target.value.replace('  ', ' '));
     }
 
     const style = {
@@ -113,7 +116,7 @@ function App() {
     }
 
     function onResult(result) {
-        setInputState(result);
+        setInputState(result.replace('  ', ' '));
     }
 
     function startListening() {
