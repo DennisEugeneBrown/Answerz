@@ -130,6 +130,7 @@ class QueryBlock:
         self.aggregation = None
         self.unions = []
         self.distinct_values_query = None
+        self.with_query = None
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -190,6 +191,10 @@ class QueryBlockRenderer:
         #     qb.selects[0][1] = ' AND '.join([cond[1].split('.')[-1] + ' = ' + cond[2] for cond in qb.conditions])
 
         cond_sql = self.renderConditions(qb)
+        if qb.with_query and qb.conditions:
+            for cond in qb.conditions:
+                qb.with_query.selects.append(["SUM(IIF({} != '', 1, 0))".format(cond[1]), 'total_valid'])
+                qb.with_query.selects.append(["SUM(IIF({} = '', 1, 0))".format(cond[1]), 'total_blanks'])
         if cond_sql:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
@@ -200,6 +205,18 @@ class QueryBlockRenderer:
 
             qb.selects[0][1] = cond_sql
 
+        if qb.with_query:
+            qbr = QueryBlockRenderer()
+            sql = 'WITH total AS({})'.format(qbr.render(qb.with_query))
+            qb.selects.append(
+                ["CAST(CAST({} * 100.0 / total_valid AS decimal(10, 2)) AS varchar) + '%'".format(qb.selects[0][0]),
+                 'percentage'])
+            qb.selects.append(['total_valid', 'total_valid'])
+            qb.selects.append(['total_blanks', 'total_blanks'])
+            qb.selects.append(['total', 'total'])
+            qb.groups.append(['total_valid', 'total_valid'])
+            qb.groups.append(['total_blanks', 'total_blanks'])
+            qb.groups.append(['total', 'total'])
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
@@ -234,6 +251,8 @@ class QueryBlockRenderer:
 
     def renderFrom(self, qb):
         sql = qb.table
+        if qb.with_query:
+            sql += ', total'
         if (len(qb.joins)):
             for join in set([tuple(join) for join in qb.joins]):
                 sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
@@ -572,6 +591,11 @@ class AggregationByDescriptionIntentDecoder:
                         else:
                             qb.selects.append(
                                 ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                        with_qb = QueryBlock()
+                        with_qb.addTable(table)
+                        with_qb.selects = [["Count(distinct dbo.{}.{})".format(
+                            qb.table, col["field"]), 'total']]
+                        qb.with_query = with_qb
                     else:
                         qb.selects.append(["Count()", "Count"])
                 elif (col['agg'] == 'avg'):
@@ -585,7 +609,6 @@ class AggregationByDescriptionIntentDecoder:
                         qb.selects.append(["Avg({})".format(field), "Avg_" + col['field']])
 
         if _groupAction:
-            # print('GROUPS:', qb.groups)
             if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
                     _fieldNames or _logicalLabel):
                 for mapped_grouping in mapped_groupings:
@@ -617,6 +640,7 @@ class AggregationByDescriptionIntentDecoder:
                 qb2.queryIntent = qb.queryIntent
                 qb2.table = qb.table
                 qb.unions.append(qb2)
+        # else:
 
         # qb.addTable("CallLog")
 
@@ -760,11 +784,26 @@ class BreakdownByIntentDecoder:
     def __init__(self, data_map):
         self.data_map = data_map
 
-    def findEntityByType(self, entities, type_name):
+    def findEntityByType(self, entities, type_name, return_entity=False, return_many=False):
+        ret = []
         for ix, e in enumerate(entities):
             if e["type"] == type_name:
-                return ix, e['entity']
+                if return_many:
+                    ret.append((ix, e if return_entity else e['entity']))
+                else:
+                    return ix, e if return_entity else e['entity']
+        if return_many:
+            return ret
         return -1, None
+
+    def findFieldNames(self, entities):
+        fieldNames = []
+        fieldName_entities = []
+        for e in entities:
+            if (e["type"] == '_FieldName'):
+                fieldNames.append(e['entity'])
+                fieldName_entities.append(e)
+        return fieldNames, fieldName_entities
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
     def decode(self, intent_name, entities, prev_q=None):
@@ -778,24 +817,47 @@ class BreakdownByIntentDecoder:
             print('ERROR. CANNOT FIND PREVIOUS QUERY TO BREAKDOWN.')
             return QueryBlock()
 
-        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
-        _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
+        _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction", return_entity=True)
+        # _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
+
+        _fieldNames, _fieldName_entities = self.findFieldNames(entities)
 
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
 
+        mapped_groupings = []
+        if _groupAction:
+            if _groupAction['entity'].lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
+                if _fieldNames:
+                    for ix, _fieldName in enumerate(_fieldNames):
+                        if _fieldName_entities[ix]['startIndex'] > _groupAction['startIndex']:
+                            _, mapped_grouping = data_map_repo.findGrouping(
+                                _element, _fieldName)
+                            mapped_groupings.append(mapped_grouping)
+                            # break
+                elif _logicalLabel:
+                    _, mapped_grouping = data_map_repo.findGrouping(
+                        _element, _logicalLabel)
+                    mapped_groupings = [mapped_grouping]
+                    del entities[_logicalLabel_ix]
+                else:
+                    # mapped_groupings = data_map_repo.getAllGroupings(_element)
+                    pass
+            elif _groupAction['entity'].lower() == 'compare':
+                qb.is_compare = True
+
         # if _groupAction:
-        if _fieldName:
-            _, mapped_grouping = data_map_repo.findGrouping(
-                _element, _fieldName)
-        elif _logicalLabel:
-            _, mapped_grouping = data_map_repo.findGrouping(
-                _element, _logicalLabel)
-            del entities[_logicalLabel_ix]
-        else:
-            raise Exception('Something went wrong.')
+        # if _fieldName:
+        #     _, mapped_grouping = data_map_repo.findGrouping(
+        #         _element, _fieldName)
+        # elif _logicalLabel:
+        #     _, mapped_grouping = data_map_repo.findGrouping(
+        #         _element, _logicalLabel)
+        #     del entities[_logicalLabel_ix]
+        # else:
+        #     raise Exception('Something went wrong.')
 
         if mapped_grouping['joins']:
             qb.joins.extend(tuple(mapped_grouping['joins']))
@@ -810,6 +872,37 @@ class BreakdownByIntentDecoder:
         else:
             if qb.sorts and (mapped_grouping['field'], 'ASC') not in qb.sorts:
                 qb.sorts.append((mapped_grouping['field'], 'ASC'))
+        if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
+                _fieldNames or _logicalLabel):
+            for mapped_grouping in mapped_groupings:
+                if mapped_grouping['joins']:
+                    qb.joins.extend(tuple(mapped_grouping['joins']))
+                if 'display_name' in mapped_grouping:
+                    qb.groups.append(
+                        (mapped_grouping['field'], mapped_grouping['display_name']))
+                else:
+                    qb.groups.append(
+                        (mapped_grouping['field'], mapped_grouping['name']))
+                if 'sort_fields' in mapped_grouping:
+                    for sort_field in mapped_grouping['sort_fields']:
+                        if qb.sorts and sort_field not in qb.sorts:
+                            qb.sorts.append(sort_field)
+                        if sort_field[0] != mapped_grouping['field']:
+                            qb.groups.append((sort_field[0], sort_field[0]))
+                else:
+                    if qb.sorts and (qb.selects[0][-1], 'DESC') not in qb.sorts:
+                        qb.sorts.append((qb.selects[0][-1], 'DESC'))
+            qb.selects.append([
+                "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
+                    count=qb.selects[0][0]),
+                'percentage'])
+            qb2 = QueryBlock()
+            qb2.selects = [["'Total'", qb.groups[0][1]],
+                           ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+                           ["'100%'", qb.selects[1][1]]]
+            qb2.queryIntent = qb.queryIntent
+            qb2.table = qb.table
+            qb.unions.append(qb2)
 
         return entities, qb
 
@@ -1255,6 +1348,7 @@ class LuisIntentProcessor:
         field_name = new_qb.conditions[0][1] if new_qb.conditions[0][1] else new_qb.conditions[0][0].split(' like ')[0]
         new_qb.selects = [['COUNT(*)', field_name]]
         new_qb.groups = [[field_name, field_name]]
+        new_qb.joins = qb.joins
         return new_qb
 
     def process_entity_list(self, entity_list, query):
@@ -1309,6 +1403,13 @@ class LuisIntentProcessor:
             query.date_count_conditions = True
         return query
 
+    def find_nth(self, haystack, needle, n):
+        start = haystack.find(needle)
+        while start >= 0 and n > 1:
+            start = haystack.find(needle, start + len(needle))
+            n -= 1
+        return start
+
     def prepare_query(self, q, prev_q, query_processor):
         self.luis = q
 
@@ -1355,7 +1456,6 @@ class LuisIntentProcessor:
                 if entity['type'] == type:
                     geography_entities_found.append(entity)
 
-        # geography_entities_found_ = []
         for ix, entity in enumerate(geography_entities_found):
             for ix_, entity_ in enumerate(geography_entities_found):
                 if ix == ix_:
@@ -1384,13 +1484,18 @@ class LuisIntentProcessor:
             len(geography_entities_found)))
         print(geography_entities_found)
 
-        keep = None
+        keep = []
         if 'county' in q['query'].lower():
-            keep = ['county']
-        elif 'city' in q['query'].lower():
-            keep = ['city', 'builtin.geographyV2.city']
-        elif 'state' in q['query'].lower():
-            keep = ['builtin.geographyV2.state']
+            for ix in range(q['query'].lower().count('county')):
+                keep.append(('county', self.find_nth(q['query'].lower(), 'county', ix + 1), len('county')))
+        if 'city' in q['query'].lower():
+            for ix in range(q['query'].lower().count('city')):
+                keep_ix = self.find_nth(q['query'].lower(), 'city', ix + 1)
+                keep.extend([('city', keep_ix, len('city')), ('builtin.geographyV2.city', keep_ix, len('city'))])
+        if 'state' in q['query'].lower():
+            for ix in range(q['query'].lower().count('state')):
+                keep.append(
+                    ('builtin.geographyV2.state', self.find_nth(q['query'].lower(), 'state', ix + 1), len('state')))
 
         queries = []
 
@@ -1416,18 +1521,30 @@ class LuisIntentProcessor:
             'query'].lower():
             # Build the initial query block
             for entity in geography_entities_found:
-                if keep and entity['type'].lower() not in keep:
-                    continue
 
-                entity_list, query = intent_decoder.decode(
-                    this_intent, entity_list, prev_q=prev_q)
+                # If a keep matches on index
+                #   if matches on type, keep entity
+                #   else skip
+                # else keep
 
-                entity_list_ = [
-                    entity_ for entity_ in entity_list if entity_ not in geography_entities_found or entity_ == entity]
+                skip = False
+                for value, ix, length in keep:
+                    if abs((entity['startIndex'] + entity['length']) - ix) <= 2 or abs(
+                            entity['startIndex'] - (ix + length)) <= 4:  # keep matches on index
+                        if value == entity['type'].lower():
+                            skip = False
+                            break
+                        else:
+                            skip = True
+                if not skip:
+                    entity_list, query = intent_decoder.decode(
+                        this_intent, entity_list, prev_q=prev_q)
+                    entity_list_ = [
+                        entity_ for entity_ in entity_list if
+                        entity_ not in geography_entities_found or entity_ == entity]
+                    query = self.process_entity_list(entity_list_, query)
+                    queries.append(query)
 
-                query = self.process_entity_list(entity_list_, query)
-
-                queries.append(query)
         else:
 
             if this_intent == 'cross-by-field-name':
@@ -1562,7 +1679,6 @@ class AnswerzProcessor():
 
     def run_query(self, text, prev_query=None):
         q = self.interpret(text)
-        # pprint(q)
         if prev_query:
             prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
                                                                    self.queryProcessor)
