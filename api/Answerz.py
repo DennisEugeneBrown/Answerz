@@ -34,6 +34,7 @@ class Answerz(Resource):
             result = res['result']
             sql = res['sql']
             distinct_values = res['distinct_values']
+            totals_table = res['totals_table']
             if sql.lower() in sql_lower:
                 continue
             sql_lower.append(sql.lower())
@@ -41,5 +42,6 @@ class Answerz(Resource):
             print(result['Output'])
 
         final_ret = {"status": "Success", "message": out, "queries": sql_lower,
-                     "other_result": distinct_values[0]['Output'] if distinct_values else '', 'follow_up': follow_up}
+                     "other_result": distinct_values[0]['Output'] if distinct_values else totals_table[0][
+                         'Output'] if totals_table else '', 'follow_up': follow_up}
         return final_ret

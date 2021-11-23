@@ -131,6 +131,10 @@ class QueryBlock:
         self.unions = []
         self.distinct_values_query = None
         self.with_query = None
+        self.totals = None
+        self.is_total = False
+        self.unpivot_selects = []
+        self.unpivot_cols = []
 
     def addTable(self, tableName, join=None):
         if (join):
@@ -183,18 +187,17 @@ class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
 
+        if qb.is_total:
+            print('hold on')
+
         if qb.count_conditions:
             qb.selects = self.processCountConditions(qb,
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
-        # if qb.conditions:
-        #     qb.selects[0][1] = ' AND '.join([cond[1].split('.')[-1] + ' = ' + cond[2] for cond in qb.conditions])
-
         cond_sql = self.renderConditions(qb)
         if qb.with_query and qb.conditions:
-            for cond in qb.conditions:
-                qb.with_query.selects.append(["SUM(IIF({} != '', 1, 0))".format(cond[1]), 'total_valid'])
-                qb.with_query.selects.append(["SUM(IIF({} = '', 1, 0))".format(cond[1]), 'total_blanks'])
+            qb.with_query.selects = [["SUM({})".format(
+                ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_valid']]
         if cond_sql:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
@@ -205,20 +208,45 @@ class QueryBlockRenderer:
 
             qb.selects[0][1] = cond_sql
 
-        if qb.with_query:
-            qbr = QueryBlockRenderer()
-            sql = 'WITH total AS({})'.format(qbr.render(qb.with_query))
-            qb.selects.append(
-                ["CAST(CAST({} * 100.0 / total_valid AS decimal(10, 2)) AS varchar) + '%'".format(qb.selects[0][0]),
-                 'percentage'])
-            qb.selects.append(['total_valid', 'total_valid'])
-            qb.selects.append(['total_blanks', 'total_blanks'])
-            qb.selects.append(['total', 'total'])
-            qb.groups.append(['total_valid', 'total_valid'])
-            qb.groups.append(['total_blanks', 'total_blanks'])
-            qb.groups.append(['total', 'total'])
+        add_with_table = False
+        if (not qb.groups or qb.is_total) and qb.with_query:
+            add_with_table = True
+            if not qb.is_total:
+                for select in qb.with_query.selects:
+                    qb.selects.append(
+                        ["CAST(CAST({} * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(select[0], select[-1]),
+                         'percentage {}'.format(select[-1])])
+                    qb.groups.append([select[-1], select[-1]])
+
+            if not qb.is_total:
+                qb.totals = QueryBlock()
+                qb.totals.is_total = True
+                qb.totals.addTable(qb.table)
+                qb.totals.with_query = QueryBlock()
+                qb.totals.with_query.selects = [[qb.selects[0][0], 'total']]
+                qb.totals.with_query.table = qb.table
+                # qb.totals.selects.append(['total', 'total'])
+                qb.totals.groups.append(['total', 'total'])
+                if qb.conditions:
+                    # qb.totals.with_query.selects.append(
+                    #     ["SUM(IIF({} != '', 1, 0))".format(qb.conditions[0][1]), 'total_valid'])
+                    # qb.totals.with_query.selects.append(
+                    #     ["SUM(IIF({} = '', 1, 0))".format(qb.conditions[0][1]), 'total_blanks'])
+                    qb.totals.with_query.selects.append(["SUM({})".format(
+                        ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_valid'])
+                    qb.totals.with_query.selects.append(["SUM({})".format(
+                        ' * '.join(["IIF({} = '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_blanks'])
+                    # qb.totals.selects.append(['total_valid', 'total_valid'])
+                    # qb.totals.selects.append(['total_blanks', 'total_blanks'])
+                    qb.totals.groups.append(['total_valid', 'total_valid'])
+                    qb.totals.groups.append(['total_blanks', 'total_blanks'])
+                qb.totals.unpivot_selects = [['col', 'col'], ['value', 'value'],
+                                             ["cast(cast(value * 100.0 / [total] as decimal(10, 2)) as varchar) + '%'",
+                                              'percentage']]
+                qb.totals.unpivot_cols = [col[0] for col in qb.totals.groups]
+
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
-        sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
+        sql = sql + "\nFROM\n\t" + self.renderFrom(qb, add_with_table=add_with_table)
 
         if (cond_sql):
             sql = sql + "\nWHERE " + cond_sql
@@ -236,6 +264,30 @@ class QueryBlockRenderer:
         if (order_sql):
             sql = sql + "\nORDER BY " + order_sql
 
+        if qb.unpivot_cols:
+            sql = self.renderUnpivot(qb, sql)
+            print('sql is')
+            # qbr = QueryBlockRenderer()
+            # sql = 'WITH total AS({})'.format(qbr.render(qb.with_query)) + sql
+
+        if add_with_table:
+            qbr = QueryBlockRenderer()
+            sql = 'WITH total AS({})'.format(qbr.render(qb.with_query)) + sql
+
+        return sql
+
+    def renderUnpivotSelect(self, qb):
+        sep = ""
+        sql = ""
+        for term in qb.unpivot_selects:
+            sql = sql + sep + term[0] + " AS [" + term[1] + "]"
+            sep = ", "
+        return sql
+
+    def renderUnpivot(self, qb, sql):
+        sql = 'SELECT ' + self.renderUnpivotSelect(qb) + ' FROM ({})'.format(sql)
+        sql = sql + 'AS SourceTable UNPIVOT (value for col in ({})) AS PivotTable, total;'.format(
+            ','.join(qb.unpivot_cols))
         return sql
 
     def renderSelect(self, qb):
@@ -249,9 +301,9 @@ class QueryBlockRenderer:
 
         return sql
 
-    def renderFrom(self, qb):
+    def renderFrom(self, qb, add_with_table=False):
         sql = qb.table
-        if qb.with_query:
+        if add_with_table:
             sql += ', total'
         if (len(qb.joins)):
             for join in set([tuple(join) for join in qb.joins]):
@@ -593,8 +645,6 @@ class AggregationByDescriptionIntentDecoder:
                                 ["Count({})".format(col["field"]), "Count_" + col["field"]])
                         with_qb = QueryBlock()
                         with_qb.addTable(table)
-                        with_qb.selects = [["Count(distinct dbo.{}.{})".format(
-                            qb.table, col["field"]), 'total']]
                         qb.with_query = with_qb
                     else:
                         qb.selects.append(["Count()", "Count"])
@@ -1700,6 +1750,8 @@ class AnswerzProcessor():
                 results.append({'result': result, 'sql': sql,
                                 'distinct_values': self.queryProcessor.generate_and_run_query(
                                     pq.distinct_values_query) if pq.distinct_values_query else None,
+                                'totals_table': self.queryProcessor.generate_and_run_query(
+                                    pq.totals) if pq.totals else None,
                                 'follow_up': True if prev_query else False})
         return results
 
