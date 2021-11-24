@@ -209,7 +209,7 @@ class QueryBlockRenderer:
             qb.selects[0][1] = cond_sql
 
         add_with_table = False
-        if (not qb.groups or qb.is_total) and qb.conditions and qb.with_query:
+        if (not qb.groups and qb.with_query and qb.conditions) or qb.is_total:
             add_with_table = True
             if not qb.is_total:
                 for select in qb.with_query.selects:
