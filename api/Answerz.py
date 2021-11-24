@@ -40,8 +40,8 @@ class Answerz(Resource):
             sql_lower.append(sql.lower())
             out.append(result['Output'])
             print(result['Output'])
-
+        sql_lower = list(set(sql_lower))
         final_ret = {"status": "Success", "message": out, "queries": sql_lower,
                      "other_result": distinct_values[0]['Output'] if distinct_values else totals_table[0][
-                         'Output'] if totals_table else '', 'follow_up': follow_up}
+                         'Output'] if totals_table and len(sql_lower) == 1 else '', 'follow_up': follow_up}
         return final_ret

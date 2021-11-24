@@ -115,7 +115,8 @@ class DataMapRepo:
 class QueryBlock:
     def __init__(self, intent_summary=None):
         self.queryIntent = intent_summary
-        self.table = None
+        # self.table = None
+        self.tables = []
         self.selects = []
         self.joins = []
         self.conditions = []
@@ -136,18 +137,21 @@ class QueryBlock:
         self.unpivot_selects = []
         self.unpivot_cols = []
 
-    def addTable(self, tableName, join=None):
-        if (join):
-            for join in self.joins:
-                if (join[0] == tableName):
-                    #
-                    # Already have this join. Let's hope it doesnt conflict!
-                    #
-                    break
+    def addTable(self, tableNames, join=None):
+        if not isinstance(tableNames, list):
+            tableNames = [tableNames]
+        for tableName in tableNames:
+            if join:
+                for join in self.joins:
+                    if (join[0] == tableName):
+                        #
+                        # Already have this join. Let's hope it doesnt conflict!
+                        #
+                        break
 
-            self.joins.append((tableName, join))
-        else:
-            self.table = tableName
+                self.joins.append((tableName, join))
+            else:
+                self.tables.append(tableName)
 
     def addGroup(self, group_field):
         self.groups.append(group_field)
@@ -162,10 +166,10 @@ class QueryBlock:
     def merge(self, qb_other):
         if (not qb_other):
             return False
-        if (qb_other.table and qb_other.table != self.table):
+        if (qb_other.tables and qb_other.tables != self.tables):
             print("Root table mismatch on Query Block merge")
-            print(qb_other.table)
-            print(self.table)
+            print(qb_other.tables)
+            print(self.tables)
             print("---")
             return
 
@@ -211,6 +215,8 @@ class QueryBlockRenderer:
         add_with_table = False
         if (not qb.groups and qb.with_query and qb.conditions) or qb.is_total:
             add_with_table = True
+            if 'total' not in qb.tables:
+                qb.addTable('total')
             if not qb.is_total:
                 for select in qb.with_query.selects:
                     qb.selects.append(
@@ -221,10 +227,11 @@ class QueryBlockRenderer:
             if not qb.is_total:
                 qb.totals = QueryBlock()
                 qb.totals.is_total = True
-                qb.totals.addTable(qb.table)
+                qb.totals.addTable(qb.tables)
                 qb.totals.with_query = QueryBlock()
                 qb.totals.with_query.selects = [[qb.selects[0][0], 'total']]
-                qb.totals.with_query.table = qb.table
+                qb.totals.with_query.tables = qb.tables[0:1]
+                qb.totals.with_query.joins = qb.joins
                 qb.totals.groups.append(['total', 'total'])
                 if qb.conditions:
                     qb.totals.with_query.selects.append(["SUM({})".format(
@@ -239,7 +246,7 @@ class QueryBlockRenderer:
                 qb.totals.unpivot_cols = [col[0] for col in qb.totals.groups]
 
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
-        sql = sql + "\nFROM\n\t" + self.renderFrom(qb, add_with_table=add_with_table)
+        sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
         if (cond_sql):
             sql = sql + "\nWHERE " + cond_sql
@@ -293,13 +300,17 @@ class QueryBlockRenderer:
         return sql
 
     def renderFrom(self, qb, add_with_table=False):
-        sql = qb.table
-        if add_with_table:
-            sql += ', total'
-        if (len(qb.joins)):
-            for join in set([tuple(join) for join in qb.joins]):
-                sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
-        return sql
+        sql = ''
+        for table in qb.tables:
+            sql += table
+            # if add_with_table:
+            #     sql += ', total'
+            if (len(qb.joins)):
+                for join in set([tuple(join) for join in qb.joins]):
+                    if table in join[1].split('.'):
+                        sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
+            sql += ', '
+        return sql.strip().rstrip(',')
 
     def renderGroups(self, qb):
         sep = ""
@@ -370,7 +381,7 @@ class QueryBlockRenderer:
 
         def encodeSelect(lhs, rhs, agg, encoded_op, and_=None):
             if agg.lower() == 'avg':
-                field = "CAST(dbo.{}.{} AS {})".format(qb.table, 'CallLength', 'INT')
+                field = "CAST(dbo.{}.{} AS {})".format(qb.tables[0], 'CallLength', 'INT')
             else:
                 field = 1
 
@@ -488,11 +499,11 @@ class QueryTestBlocks():
 
     def chained_select_and_group(self):
         qb1 = QueryBlock()
-        qb1.table = "CallLog"
+        qb1.tables = ["CallLog"]
         qb1.selects.append(("Count(distinct CallReportNum)", "Measure"))
 
         qb2 = QueryBlock()
-        qb2.table = "CallLog"
+        qb2.tables = ["CallLog"]
         qb2.joins.append(
             ("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
         qb3 = QueryBlock()
@@ -630,22 +641,25 @@ class AggregationByDescriptionIntentDecoder:
                     if ("field" in col and col["field"]):
                         if (col["distinct"]):
                             qb.selects.append(["Count(distinct dbo.{}.{})".format(
-                                qb.table, col["field"]), "Count_" + col["field"]])
+                                qb.tables[0], col["field"]), "Count_" + col["field"]])
                         else:
                             qb.selects.append(
                                 ["Count({})".format(col["field"]), "Count_" + col["field"]])
                         with_qb = QueryBlock()
                         with_qb.addTable(table)
+                        with_qb.joins = qb.joins
                         qb.with_query = with_qb
                     else:
                         qb.selects.append(["Count()", "Count"])
                 elif (col['agg'] == 'avg'):
                     if "field" in col and col["field"]:
                         if 'cast' in col and col['cast']:
-                            field = "CAST({}dbo.{}.{} AS {})".format('distinct ' if col['distinct'] else '', qb.table,
+                            field = "CAST({}dbo.{}.{} AS {})".format('distinct ' if col['distinct'] else '',
+                                                                     qb.tables[0],
                                                                      col["field"], col['cast'])
                         else:
-                            field = "{}dbo.{}.{}".format('distinct ' if col['distinct'] else '', qb.table, col["field"])
+                            field = "{}dbo.{}.{}".format('distinct ' if col['distinct'] else '', qb.tables[0],
+                                                         col["field"])
 
                         qb.selects.append(["Avg({})".format(field), "Avg_" + col['field']])
 
@@ -679,7 +693,7 @@ class AggregationByDescriptionIntentDecoder:
                                ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
                                ["'100%'", qb.selects[1][1]]]
                 qb2.queryIntent = qb.queryIntent
-                qb2.table = qb.table
+                qb2.tables = qb.tables
                 qb.unions.append(qb2)
         # else:
 
@@ -752,7 +766,7 @@ class CrossByFieldNameIntentDecoder:
                 if "field" in col and col["field"]:
                     if col["distinct"]:
                         qb.selects.append(["Count(distinct dbo.{}.{})".format(
-                            qb.table, col["field"]), "Count_" + col["field"]])
+                            qb.tables[0], col["field"]), "Count_" + col["field"]])
                     else:
                         qb.selects.append(
                             ["Count({})".format(col["field"]), "Count_" + col["field"]])
@@ -942,7 +956,7 @@ class BreakdownByIntentDecoder:
                            ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
                            ["'100%'", qb.selects[1][1]]]
             qb2.queryIntent = qb.queryIntent
-            qb2.table = qb.table
+            qb2.tables = qb.tables
             qb.unions.append(qb2)
 
         return entities, qb
@@ -1384,7 +1398,7 @@ class LuisIntentProcessor:
 
     def generateDistinctValuesQuery(self, qb):
         new_qb = QueryBlock()
-        new_qb.table = qb.table
+        new_qb.tables = qb.tables[0:1]
         new_qb.conditions = [cond for cond in qb.conditions if cond[0] == 'lk' or ' like ' in cond[0]]
         field_name = new_qb.conditions[0][1] if new_qb.conditions[0][1] else new_qb.conditions[0][0].split(' like ')[0]
         new_qb.selects = [['COUNT(*)', field_name]]
@@ -1600,17 +1614,17 @@ class LuisIntentProcessor:
                 field_name_1 = field_names[0]
                 field_name_2 = field_names[1]
 
-                values_1 = self.get_field_values(field_name_1, query.table, query_processor)
+                values_1 = self.get_field_values(field_name_1, query.tables[0], query_processor)
                 values_1 = [value[field_name_1] for value in values_1['Output']]
 
-                values_2 = self.get_field_values(field_name_2, query.table, query_processor)
+                values_2 = self.get_field_values(field_name_2, query.tables[0], query_processor)
                 values_2 = [value[field_name_2] for value in values_2['Output']]
 
                 for value_1 in values_1:
                     entity_list_ = copy.copy(entity_list)
                     query_ = copy.deepcopy(query)
                     entity_list_.append({'entity': value_1, 'type': field_name_1})
-                    query_.conditions.append(['eq', '{}.{}'.format(query_.table, field_name_1), value_1])
+                    query_.conditions.append(['eq', '{}.{}'.format(query_.tables[0], field_name_1), value_1])
                     for value_2 in values_2:
                         entity_list_.append({'entity': value_2, 'type': field_name_2})
                     query_.is_compare = True
@@ -1662,16 +1676,6 @@ class QueryProcessor:
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
             rows.append(row_dictionary)
-        # rows = {}
-        # rows[headers[0][0]] = {}
-        # for ix, row in enumerate(result):
-        #     row_dict= {}
-        #     for col_ix, col in enumerate(headers):
-        #         row_dict[col[1]] = row[col_ix]
-        #     if row[0] in rows[headers[0][0]]:
-        #         rows[headers[0][0]][row[0]].append(row_dict)
-        #     else:
-        #         rows[headers[0][0]][row[0]] = [row_dict]
         output = {'Output': rows}
         return output
 
@@ -1780,19 +1784,31 @@ class CallsColumnTester:
                 writer.writerow([value, query, sql, result])
 
 
-if __name__ == '__main__':
-    with open('config.json', 'r') as r:
-        config = json.loads(r.read())
-    tester = CallsColumnTester('city', config)
-    tester.run_test(30)
-
-    # ap = AnswerzProcessor(
-    #     config['DATAMAP'], config['DB'], config['LUIS'])
-    # result, sql = ap.run_query(
-    #     "how many referrals from mercy house")
-    # print()
-    # print(result)
-    # print('----------------')
-    # result, sql = ap.run_query(
-    #     "break it down by gender")
-    # pprint(result)
+# class QueryTester:
+#     def __init__(self, source, ap):
+#         self.test_source = source
+#         self.processor = ap
+#
+#     def run_tests(self):
+#         df = pd.read_csv(self.test_source)
+#         for ix, row in df.iterrows():
+#             query = row['query']
+#             results = self.processor.run_query(query)
+#             print(results['result'])
+#
+#     def run_tests(self):
+#         df = pd.read_csv(self.test_source)
+#         df = DataFrame(columns=)
+#         for ix, row in df.iterrows():
+#             query = row['query']
+#             results = self.processor.run_query(query)
+#             print(results['result'])
+#
+#
+# if __name__ == '__main__':
+#     with open('config.json', 'r') as r:
+#         config = json.loads(r.read())
+#     ap = AnswerzProcessor(
+#         config['DATAMAP'], config['DB'], config['LUIS'])
+#     query_tester = QueryTester('tests.csv', ap)
+#     query_tester.run_tests()
