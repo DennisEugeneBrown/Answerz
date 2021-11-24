@@ -209,7 +209,7 @@ class QueryBlockRenderer:
             qb.selects[0][1] = cond_sql
 
         add_with_table = False
-        if (not qb.groups or qb.is_total) and qb.with_query:
+        if (not qb.groups or qb.is_total) and qb.conditions and qb.with_query:
             add_with_table = True
             if not qb.is_total:
                 for select in qb.with_query.selects:
@@ -225,19 +225,12 @@ class QueryBlockRenderer:
                 qb.totals.with_query = QueryBlock()
                 qb.totals.with_query.selects = [[qb.selects[0][0], 'total']]
                 qb.totals.with_query.table = qb.table
-                # qb.totals.selects.append(['total', 'total'])
                 qb.totals.groups.append(['total', 'total'])
                 if qb.conditions:
-                    # qb.totals.with_query.selects.append(
-                    #     ["SUM(IIF({} != '', 1, 0))".format(qb.conditions[0][1]), 'total_valid'])
-                    # qb.totals.with_query.selects.append(
-                    #     ["SUM(IIF({} = '', 1, 0))".format(qb.conditions[0][1]), 'total_blanks'])
                     qb.totals.with_query.selects.append(["SUM({})".format(
                         ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_valid'])
                     qb.totals.with_query.selects.append(["SUM({})".format(
                         ' * '.join(["IIF({} = '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_blanks'])
-                    # qb.totals.selects.append(['total_valid', 'total_valid'])
-                    # qb.totals.selects.append(['total_blanks', 'total_blanks'])
                     qb.totals.groups.append(['total_valid', 'total_valid'])
                     qb.totals.groups.append(['total_blanks', 'total_blanks'])
                 qb.totals.unpivot_selects = [['col', 'col'], ['value', 'value'],
@@ -267,8 +260,6 @@ class QueryBlockRenderer:
         if qb.unpivot_cols:
             sql = self.renderUnpivot(qb, sql)
             print('sql is')
-            # qbr = QueryBlockRenderer()
-            # sql = 'WITH total AS({})'.format(qbr.render(qb.with_query)) + sql
 
         if add_with_table:
             qbr = QueryBlockRenderer()
