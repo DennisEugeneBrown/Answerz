@@ -12,7 +12,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Modal from '@mui/material/Modal';
-import ReactVoiceInput from 'react-voice-input'
+import ReactVoiceInput from 'react-voice-input';
+import {CSVReader} from 'react-papaparse'
 
 const formReducer = (state, event) => {
     return {
@@ -27,14 +28,19 @@ console.log(document.getElementById('main'))
 
 function App() {
 
+    const buttonRef = React.createRef();
+
     const [getMessage, setGetMessage] = useState({})
     const [getTable, setGetTable] = useState({})
+    const [getIsScript, setIsScript] = useState(false)
     const [formData, setFormData] = useReducer(formReducer, {});
     const [submitting, setSubmitting] = useState(false);
     const [getError, setError] = useState(false);
     const [getListening, setListening] = useState(false);
     const [getColumns, setColumns] = useState([]);
     const [getDataTables, setDataTables] = useState([]);
+    const [getScriptQueries, setScriptQueries] = useState([]);
+    const [getScriptIndex, setScriptIndex] = useState(0);
     const [getState, setState] = useState({
         leftOpen: true,
         rightOpen: true,
@@ -70,10 +76,14 @@ function App() {
 
     const handleSubmit = event => {
         event.preventDefault();
+        submit(getInputState);
+    }
+
+    const submit = (inputValue) => {
         setSubmitting(true);
         axios.post('http://localhost:1234/answerz', {
-            'text': getInputState.replace('  ', ' '),
-            'prev_query': (getInputState.toLowerCase().includes('group by') || getInputState.toLowerCase().includes('down by') || getInputState.toLowerCase().includes('out by')) ? getPrevQuery : ''
+            'text': inputValue.replace('  ', ' '),
+            'prev_query': (inputValue.toLowerCase().includes('group by') || inputValue.toLowerCase().includes('down by') || inputValue.toLowerCase().includes('out by')) ? getPrevQuery : ''
         })
             .then(response => {
                 console.log("Responded", response)
@@ -82,7 +92,7 @@ function App() {
                 setError(false);
                 if (!response.data.follow_up) {
                     console.log('Updating prev query..')
-                    setPrevQuery(getInputState);
+                    setPrevQuery(inputValue);
                 }
             }).catch((error) => {
             setSubmitting(false);
@@ -91,10 +101,6 @@ function App() {
     }
 
     const handleChange = event => {
-        // setFormData({
-        //     name: event.target.name,
-        //     value: event.target.value,
-        // });
         setInputState(event.target.value.replace('  ', ' '));
     }
 
@@ -142,6 +148,7 @@ function App() {
     const handleOpen = () => setOpen(true);
     const handleClose = () => setOpen(false);
     const handleBoxChange = () => setGetTable(getTable);
+    const handleScriptBoxChange = () => setIsScript(!getIsScript);
 
     const toggleSidebar = (event) => {
         let key = `${event.currentTarget.parentNode.id}Open`;
@@ -150,13 +157,46 @@ function App() {
         console.log(getState);
     }
 
-    const onEnd = () => {
-        console.log('on end')
+    const handleOnDrop = (data) => {
+        let column_headers = [];
+        let script_queries = [];
+        data.forEach((value, i) => {
+            if (i === 0) {
+                column_headers = value.data;
+                return;
+            }
+            console.log(value.data[column_headers.indexOf('query')]);
+            const query = value.data[column_headers.indexOf('query')];
+            if (query) {
+                script_queries.push(query);
+            }
+        });
+        setScriptQueries(script_queries);
+
+    }
+
+    const handleOnError = (err, file, inputElem, reason) => {
+        console.log(err)
+    }
+
+    const runScript = () => {
+        if (getScriptIndex < getScriptQueries.length) {
+            setInputState(getScriptQueries[getScriptIndex]);
+            setScriptIndex(getScriptIndex + 1);
+
+            submit(getScriptQueries[getScriptIndex]);
+        }
+    }
+
+    const handleOnRemoveFile = (data) => {
+        console.log('---------------------------')
+        console.log(data)
+        console.log('---------------------------')
+        setScriptQueries([]);
     }
 
     let leftOpen = getState.leftOpen ? 'open' : 'closed';
     let rightOpen = getState.rightOpen ? 'open' : 'closed';
-    let languages = ['test', 'test2']
     let label = 'test'
 
     return (
@@ -258,7 +298,22 @@ function App() {
                         </div>
                     </div>
                     <header className="App-header">
-
+                        <Container><Checkbox label={'Use Script'} defaultUnchecked
+                                             onChange={handleScriptBoxChange}/> Script
+                            {getIsScript ?
+                                <CSVReader
+                                    onDrop={handleOnDrop}
+                                    onError={handleOnError}
+                                    addRemoveButton
+                                    removeButtonColor='#659cef'
+                                    onRemoveFile={handleOnRemoveFile}
+                                >
+                                    <span>Drop CSV file here or click to upload.</span>
+                                </CSVReader> : ''}
+                            {getIsScript ?
+                                getScriptQueries.map((d) => <li>{d}</li>) : ''}
+                            {getIsScript ? <Button variant="contained"
+                                                   onClick={runScript}>Next</Button> : ''}</Container>
                         <div className='loading'>{submitting ?
                             <div>
                                 {/*<h3>LOADING</h3>*/}
