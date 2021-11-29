@@ -1742,12 +1742,28 @@ class AnswerzProcessor():
         else:
             for pq in pqs:
                 result, sql = self.queryProcessor.generate_and_run_query(pq)
-                results.append({'result': result, 'sql': sql,
-                                'distinct_values': self.queryProcessor.generate_and_run_query(
-                                    pq.distinct_values_query) if pq.distinct_values_query else None,
+                cols = [{'field': key, 'headerName': key.title(), 'flex': 1} for key in
+                        list(result['Output'][0].keys())] if \
+                    result['Output'] else []
+                rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
+                print('TESTESTSTS')
+                distinct_values_table = self.queryProcessor.generate_and_run_query(
+                    pq.distinct_values_query) if pq.distinct_values_query else None
+                distinct_values_table_cols = [{'field': key, 'headerName': key.title(), 'flex': 1} for key in
+                                              list(distinct_values_table[0]['Output'][0].keys())] if result[
+                    'Output'] else []
+                distinct_values_table_rows = [{'id': ix + 1, **row} for ix, row in
+                                              enumerate(distinct_values_table[0]['Output'])]
+                results.append({'result': result,
+                                'sql': sql,
+                                'distinct_values': distinct_values_table,
                                 'totals_table': self.queryProcessor.generate_and_run_query(
                                     pq.totals) if pq.totals else None,
-                                'follow_up': True if prev_query else False})
+                                'follow_up': True if prev_query else False,
+                                'main_table': {'rows': rows, 'cols': cols},
+                                'distinct_values_table': {'cols': distinct_values_table_cols,
+                                                          'rows': distinct_values_table_rows}
+                                })
         return results
 
     def run_sql_query(self, sql, headers):

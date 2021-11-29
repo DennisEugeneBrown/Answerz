@@ -4,16 +4,29 @@ import 'reactjs-popup/dist/index.css';
 import spinner from './spinner.svg';
 import './App.css';
 import 'react-minimal-side-navigation/lib/ReactMinimalSideNavigation.css';
-import axios from 'axios'
-import {JsonToTable} from "react-json-to-table";
 import {Container, Row, Col} from 'react-grid-system';
-import Checkbox from '@mui/material/Checkbox';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import Modal from '@mui/material/Modal';
+import {JsonToTable} from "react-json-to-table";
 import ReactVoiceInput from 'react-voice-input';
+import Checkbox from '@mui/material/Checkbox';
+import {DataGrid} from '@mui/x-data-grid';
+import Button from '@mui/material/Button';
 import {CSVReader} from 'react-papaparse'
+import Modal from '@mui/material/Modal';
+import Box from '@mui/material/Box';
+import axios from 'axios'
+import {
+    createTheme,
+    useTheme,
+} from "@material-ui/core/styles";
+
+const THEME = createTheme({
+    typography: {
+        // In Chinese and Japanese the characters are usually larger,
+        // so a smaller fontsize may be appropriate.
+        fontSize: 200,
+    },
+});
 
 const formReducer = (state, event) => {
     return {
@@ -29,7 +42,7 @@ console.log(document.getElementById('main'))
 function App() {
 
     const buttonRef = React.createRef();
-
+    const theme = useTheme(THEME);
     const [getMessage, setGetMessage] = useState({})
     const [getTable, setGetTable] = useState({})
     const [getIsScript, setIsScript] = useState(false)
@@ -41,13 +54,14 @@ function App() {
     const [getDataTables, setDataTables] = useState([]);
     const [getScriptQueries, setScriptQueries] = useState([]);
     const [getScriptIndex, setScriptIndex] = useState(0);
+    const [getFilters, setFilters] = useState([]);
     const [getState, setState] = useState({
         leftOpen: true,
         rightOpen: true,
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.11'
+    const versionNumber = '2.0.12'
 
     const [getInputState, setInputState] = useState('');
 
@@ -71,8 +85,8 @@ function App() {
     }, [])
 
 
-    let rows = []
-    let cols = []
+    // let rows = []
+    // let cols = []
 
     const handleSubmit = event => {
         event.preventDefault();
@@ -150,6 +164,17 @@ function App() {
     const handleBoxChange = () => setGetTable(getTable);
     const handleScriptBoxChange = () => setIsScript(!getIsScript);
 
+    function handleFilter() {
+        let rows = getTable.data.other_result_table.rows
+        let cols = getTable.data.other_result_table.cols
+        let selected = getFilters.map(i => rows[i - 1])
+        let to_replace_by = selected[0][cols[0].field]
+        let to_replace = cols[1].field.split('like')[1].replaceAll('%', '').replaceAll("'", '').trim()
+        let input = getInputState.replace(to_replace, to_replace_by)
+        setInputState(input)
+        submit(input)
+    }
+
     const toggleSidebar = (event) => {
         let key = `${event.currentTarget.parentNode.id}Open`;
         let otherKey = (key === 'leftOpen') ? 'rightOpen' : 'leftOpen';
@@ -198,6 +223,53 @@ function App() {
     let leftOpen = getState.leftOpen ? 'open' : 'closed';
     let rightOpen = getState.rightOpen ? 'open' : 'closed';
     let label = 'test'
+
+
+    const columns = [
+        {field: 'id', headerName: 'ID', width: 90},
+        {
+            field: 'firstName',
+            headerName: 'First name',
+            width: 150,
+            editable: true,
+        },
+        {
+            field: 'lastName',
+            headerName: 'Last name',
+            width: 150,
+            editable: true,
+        },
+        {
+            field: 'age',
+            headerName: 'Age',
+            type: 'number',
+            width: 110,
+            editable: true,
+        },
+        {
+            field: 'fullName',
+            headerName: 'Full name',
+            description: 'This column has a value getter and is not sortable.',
+            sortable: false,
+            width: 160,
+            valueGetter: (params) =>
+                `${params.getValue(params.id, 'firstName') || ''} ${
+                    params.getValue(params.id, 'lastName') || ''
+                }`,
+        },
+    ];
+
+    const rows = [
+        {id: 1, lastName: 'Snow', firstName: 'Jon', age: 35},
+        {id: 2, lastName: 'Lannister', firstName: 'Cersei', age: 42},
+        {id: 3, lastName: 'Lannister', firstName: 'Jaime', age: 45},
+        {id: 4, lastName: 'Stark', firstName: 'Arya', age: 16},
+        {id: 5, lastName: 'Targaryen', firstName: 'Daenerys', age: null},
+        {id: 6, lastName: 'Melisandre', firstName: null, age: 150},
+        {id: 7, lastName: 'Clifford', firstName: 'Ferrara', age: 44},
+        {id: 8, lastName: 'Frances', firstName: 'Rossini', age: 36},
+        {id: 9, lastName: 'Roxie', firstName: 'Harvey', age: 65},
+    ];
 
     return (
         <div className="App">
@@ -282,7 +354,8 @@ function App() {
 
                                                 <div className='input'>
                                                     <input className='input' type='text'
-                                                           placeholder='Speak or Start Typing..' value={getInputState}
+                                                           placeholder='Speak or Start Typing..'
+                                                           value={getInputState}
                                                            onChange={handleChange}/>
                                                 </div>
                                             </form>
@@ -326,18 +399,69 @@ function App() {
                         {getListening ?
                             ''
                             :
-                            <div className='table'>{!submitting ?
+                            <div>{!submitting ?
                                 getTable.status === 200 && !getError ?
                                     <div>
-                                        {getTable.data.message.map((value, index) =>
-                                            <div className='table-class'> {getTable.data.queries[index]} <JsonToTable
-                                                json={value}/><Button
-                                                onClick={handleOpen}>Table Properties</Button></div>)}
-                                        {getTable.data.other_result ?
-                                            <div className='table-class'><JsonToTable
-                                                json={getTable.data.other_result}/></div>
+                                        {/*{getTable.data.message.map((value, index) =>*/}
+                                        {/*    <div className='table-class'> {getTable.data.queries[index]}*/}
+                                        {/*        <JsonToTable*/}
+                                        {/*            json={value}/><Button*/}
+                                        {/*            onClick={handleOpen}>Table Properties</Button></div>)}*/}
+                                        {getTable.data.tables.map((value, index) =>
+                                            <div> {getTable.data.queries[index]}
+                                                <div style={{
+                                                    height: '100%', width: '100%',
+                                                    'margin-bottom': '2%',
+                                                    'margin-top': '2%'
+                                                }}>
+                                                    <DataGrid
+                                                        theme={theme}
+                                                        rows={value.rows}
+                                                        columns={value.cols}
+                                                        pageSize={5}
+                                                        checkboxSelection
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={handleOpen}>Table Properties
+                                                </Button>
+                                            </div>)}
+                                        {getTable.data.other_result_table ?
+                                            <div style={{
+                                                height: '100%',
+                                                width: '100%',
+                                                'margin-bottom': '5%',
+                                                'margin-top': '5%'
+                                            }}>
+                                                <DataGrid
+                                                    theme={theme}
+                                                    rows={getTable.data.other_result_table.rows}
+                                                    columns={getTable.data.other_result_table.cols}
+                                                    pageSize={5}
+                                                    checkboxSelection
+                                                    onSelectionModelChange={(newSelection) => {
+                                                        setFilters(newSelection);
+                                                    }}
+                                                />
+                                            </div>
                                             :
                                             ''}
+                                        {getTable.data.other_result_table ?
+                                            <div>
+                                                <Button
+                                                    onClick={handleFilter}>Go
+                                                </Button>
+                                                <Button
+                                                    onClick={handleOpen}>Table Properties
+                                                </Button>
+                                            </div>
+                                            :
+                                            ''}
+                                        {/*{getTable.data.other_result ?*/}
+                                        {/*    <div className='table-class'><JsonToTable*/}
+                                        {/*        json={getTable.data.other_result}/></div>*/}
+                                        {/*    :*/}
+                                        {/*    ''}*/}
                                         <Modal
                                             open={open}
                                             onClose={handleClose}
@@ -353,23 +477,28 @@ function App() {
                                                 <h4>Columns: {formData.name}</h4>
                                                 <div>
                                                     <Checkbox label={label} defaultUnchecked
-                                                              onChange={handleBoxChange}/> Show Column Totals at Bottom
+                                                              onChange={handleBoxChange}/> Show Column Totals at
+                                                    Bottom
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Column Totals at Top
+                                                    <Checkbox label={label} defaultUnchecked/> Show Column Totals at
+                                                    Top
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals on Left
+                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals on
+                                                    Left
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals at Right
+                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals at
+                                                    Right
                                                 </div>
                                                 <div>
                                                     <Checkbox label={label} defaultUnchecked/> Show Percent of Row
                                                     Totals
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of Column
+                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
+                                                    Column
                                                     Totals
                                                 </div>
                                                 <div>
@@ -448,6 +577,7 @@ function App() {
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     );
