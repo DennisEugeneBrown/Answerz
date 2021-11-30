@@ -1586,7 +1586,7 @@ class LuisIntentProcessor:
                 for value, ix, length in keep:
                     if abs((entity['startIndex'] + entity['length']) - ix) <= 2 or abs(
                             entity['startIndex'] - (ix + length)) <= 4:  # keep matches on index
-                        if value == entity['type'].lower():
+                        if value.lower() == entity['type'].lower():
                             skip = False
                             break
                         else:
@@ -1729,7 +1729,8 @@ class AnswerzProcessor():
                                                                    self.queryProcessor)
             prev_query = prev_query[0]
         pqs, union = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
-        self.update_prev_query(pqs[0])  # TODO: fix bug here
+        if pqs:
+            self.update_prev_query(pqs[0])  # TODO: fix bug here
         results = []
         if union and len(pqs[0].groups) < 2:
             sqls = []
@@ -1742,25 +1743,45 @@ class AnswerzProcessor():
         else:
             for pq in pqs:
                 result, sql = self.queryProcessor.generate_and_run_query(pq)
-                cols = [{'field': key, 'headerName': key.title(), 'flex': 1} for key in
+
+                cols = [{'field': key, 'headerName': key.title(), 'flex': 1} for key
+                        in
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
+
                 rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
-                print('TESTESTSTS')
-                distinct_values_table = self.queryProcessor.generate_and_run_query(
-                    pq.distinct_values_query) if pq.distinct_values_query else None
-                distinct_values_table_cols = [{'field': key, 'headerName': key.title(), 'flex': 1} for key in
-                                              list(distinct_values_table[0]['Output'][0].keys())] if result[
-                    'Output'] else []
-                distinct_values_table_rows = [{'id': ix + 1, **row} for ix, row in
-                                              enumerate(distinct_values_table[0]['Output'])]
+
+                totals_table = self.queryProcessor.generate_and_run_query(pq.totals) if pq.totals else None
+
+                totals_table_cols = [
+                    {'field': key, 'headerName': '', 'flex': 1} for key in
+                    list(totals_table[0]['Output'][0].keys())] if totals_table and len(
+                    totals_table[0]['Output']) > 1 else []
+
+                totals_table_rows = [{'id': ix + 1, **row} for ix, row in enumerate(
+                    totals_table[0]['Output'])] if totals_table and len(
+                    totals_table[0]['Output']) > 1 else []
+
+                distinct_values_table = self.queryProcessor.generate_and_run_query(pq.distinct_values_query) \
+                    if pq.distinct_values_query else None
+
+                distinct_values_table_cols = [
+                    {'field': key, 'headerName': '', 'flex': 1} for key in
+                    list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
+                    distinct_values_table[0]['Output']) > 1 else []
+
+                distinct_values_table_rows = [{'id': ix + 1, **row} for ix, row in enumerate(
+                    distinct_values_table[0]['Output'])] if distinct_values_table and len(
+                    distinct_values_table[0]['Output']) > 1 else []
+
                 results.append({'result': result,
                                 'sql': sql,
-                                'distinct_values': distinct_values_table,
-                                'totals_table': self.queryProcessor.generate_and_run_query(
-                                    pq.totals) if pq.totals else None,
                                 'follow_up': True if prev_query else False,
                                 'main_table': {'rows': rows, 'cols': cols},
+                                'totals': totals_table,
+                                'totals_table': {'cols': totals_table_cols,
+                                                 'rows': totals_table_rows},
+                                'distinct_values': distinct_values_table,
                                 'distinct_values_table': {'cols': distinct_values_table_cols,
                                                           'rows': distinct_values_table_rows}
                                 })

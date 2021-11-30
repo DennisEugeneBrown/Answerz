@@ -47,6 +47,14 @@
     left: 2vw !important;
 }
 
+.css-1z4p5c-MuiDataGrid-root{
+    font-size: 1.5vw !important;
+}
+
+.MuiButton-root{
+    font-size: 1vw !important;
+    margin: 2vw !important;
+}
 @keyframes App-logo-spin {
     from {
         transform: rotate(0deg);

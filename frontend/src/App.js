@@ -61,7 +61,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.12'
+    const versionNumber = '2.0.13'
 
     const [getInputState, setInputState] = useState('');
 
@@ -165,12 +165,24 @@ function App() {
     const handleScriptBoxChange = () => setIsScript(!getIsScript);
 
     function handleFilter() {
-        let rows = getTable.data.other_result_table.rows
-        let cols = getTable.data.other_result_table.cols
+        let rows = getTable.data.distinct_values_table.rows
+        let cols = getTable.data.distinct_values_table.cols
         let selected = getFilters.map(i => rows[i - 1])
-        let to_replace_by = selected[0][cols[0].field]
-        let to_replace = cols[1].field.split('like')[1].replaceAll('%', '').replaceAll("'", '').trim()
-        let input = getInputState.replace(to_replace, to_replace_by)
+        let to_replace = '';
+        let to_replace_by = '';
+        if (selected[0].type) {
+            to_replace_by = selected[0].type;
+            to_replace = '';
+        } else {
+            to_replace_by = selected[0][cols[0].field];
+            to_replace = cols[1].field.split('like')[1].replaceAll('%', '').replaceAll("'", '').trim();
+        }
+        let input = getInputState;
+        if (to_replace) {
+            input = getInputState.replace(to_replace, to_replace_by);
+        } else {
+            input = getInputState + ' ' + to_replace_by;
+        }
         setInputState(input)
         submit(input)
     }
@@ -399,55 +411,103 @@ function App() {
                         {getListening ?
                             ''
                             :
-                            <div>{!submitting ?
+                            <div style={{
+                                height: '100%',
+                                width: '100%',
+                                'padding-bottom': '5%',
+                                'padding-top': '5%'
+                            }}>{!submitting ?
                                 getTable.status === 200 && !getError ?
                                     <div>
-                                        {/*{getTable.data.message.map((value, index) =>*/}
-                                        {/*    <div className='table-class'> {getTable.data.queries[index]}*/}
-                                        {/*        <JsonToTable*/}
-                                        {/*            json={value}/><Button*/}
-                                        {/*            onClick={handleOpen}>Table Properties</Button></div>)}*/}
-                                        {getTable.data.tables.map((value, index) =>
-                                            <div> {getTable.data.queries[index]}
-                                                <div style={{
-                                                    height: '100%', width: '100%',
-                                                    'margin-bottom': '2%',
-                                                    'margin-top': '2%'
-                                                }}>
-                                                    <DataGrid
-                                                        theme={theme}
-                                                        rows={value.rows}
-                                                        columns={value.cols}
-                                                        pageSize={5}
-                                                        checkboxSelection
-                                                    />
-                                                </div>
-                                                <Button
-                                                    onClick={handleOpen}>Table Properties
-                                                </Button>
-                                            </div>)}
-                                        {getTable.data.other_result_table ?
+                                        {getTable.data.distinct_values && getTable.data.distinct_values_table.rows.length ?
                                             <div style={{
                                                 height: '100%',
                                                 width: '100%',
-                                                'margin-bottom': '5%',
-                                                'margin-top': '5%'
+                                                'padding-bottom': '5%',
+                                                'padding-top': '5%'
                                             }}>
-                                                <DataGrid
-                                                    theme={theme}
-                                                    rows={getTable.data.other_result_table.rows}
-                                                    columns={getTable.data.other_result_table.cols}
-                                                    pageSize={5}
-                                                    checkboxSelection
-                                                    onSelectionModelChange={(newSelection) => {
-                                                        setFilters(newSelection);
-                                                    }}
-                                                />
+                                                Choose One or more
+                                                <div style={{
+                                                    height: '100%',
+                                                    width: '100%',
+                                                    'padding-bottom': '5%',
+                                                    'padding-top': '5%'
+                                                }}>
+                                                    <DataGrid
+                                                        theme={theme}
+                                                        rows={getTable.data.distinct_values_table.rows}
+                                                        columns={getTable.data.distinct_values_table.cols}
+                                                        pageSize={5}
+                                                        checkboxSelection
+                                                        onSelectionModelChange={(newSelection) => {
+                                                            setFilters(newSelection);
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                             :
-                                            ''}
-                                        {getTable.data.other_result_table ?
                                             <div>
+                                                {getTable.data.tables.length > 1 ?
+                                                    <div style={{
+                                                        height: '100%',
+                                                        width: '100%',
+                                                        'padding-bottom': '5%',
+                                                        'padding-top': '5%'
+                                                    }}>
+                                                        Choose One or more
+                                                    </div> :
+                                                    <div>
+                                                        {getTable.data.tables.map((value, index) =>
+                                                            <div> {getTable.data.queries[index]}
+                                                                <div style={{
+                                                                    height: '100%', width: '100%',
+                                                                    'padding-bottom': '2%',
+                                                                    'padding-top': '2%'
+                                                                }}>
+                                                                    <DataGrid
+                                                                        theme={theme}
+                                                                        rows={value.rows}
+                                                                        columns={value.cols}
+                                                                        pageSize={5}
+                                                                        checkboxSelection
+                                                                    />
+                                                                </div>
+                                                                <Button
+                                                                    onClick={handleOpen}>Table Properties
+                                                                </Button>
+                                                            </div>)}</div>}
+                                                {getTable.data.totals ?
+                                                    <div style={{
+                                                        height: '100%',
+                                                        width: '100%',
+                                                        'padding-bottom': '5%',
+                                                        'padding-top': '5%'
+                                                    }}>
+                                                        <div style={{
+                                                            height: '100%',
+                                                            width: '100%',
+                                                            'padding-bottom': '5%',
+                                                            'padding-top': '5%'
+                                                        }}>
+                                                            <DataGrid
+                                                                theme={theme}
+                                                                rows={getTable.data.totals_table.rows}
+                                                                columns={getTable.data.totals_table.cols}
+                                                                pageSize={5}
+                                                                checkboxSelection
+                                                            />
+                                                        </div>
+                                                    </div> : ''}
+                                            </div>}
+
+                                        {getTable.data.distinct_values ?
+                                            <div style={{
+                                                height: '100%',
+                                                width: '100%',
+                                                'padding-bottom': '5%',
+                                                'padding-top': '5%',
+                                                'font-size': 'xx-large'
+                                            }}>
                                                 <Button
                                                     onClick={handleFilter}>Go
                                                 </Button>
@@ -457,11 +517,13 @@ function App() {
                                             </div>
                                             :
                                             ''}
+
                                         {/*{getTable.data.other_result ?*/}
                                         {/*    <div className='table-class'><JsonToTable*/}
                                         {/*        json={getTable.data.other_result}/></div>*/}
                                         {/*    :*/}
                                         {/*    ''}*/}
+
                                         <Modal
                                             open={open}
                                             onClose={handleClose}
@@ -481,19 +543,23 @@ function App() {
                                                     Bottom
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Column Totals at
+                                                    <Checkbox label={label} defaultUnchecked/> Show Column
+                                                    Totals at
                                                     Top
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals on
+                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals
+                                                    on
                                                     Left
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals at
+                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals
+                                                    at
                                                     Right
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of Row
+                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
+                                                    Row
                                                     Totals
                                                 </div>
                                                 <div>
@@ -502,7 +568,8 @@ function App() {
                                                     Totals
                                                 </div>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of All
+                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
+                                                    All
                                                 </div>
                                                 <div>
                                                     <Checkbox label={label} defaultUnchecked/> Show Counts

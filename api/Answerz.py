@@ -26,7 +26,8 @@ class Answerz(Resource):
         results = ap.run_query(text, prev_query=prev_query)
         sql_lower = []
         out = []
-        distinct_values = None
+        distinct_values = distinct_values_table = None
+        totals = totals_table = None
         follow_up = False
         tables = []
         other_results_table = []
@@ -36,7 +37,8 @@ class Answerz(Resource):
             result = res['result']
             sql = res['sql']
             distinct_values = res['distinct_values']
-            other_results_table = res['distinct_values_table']
+            distinct_values_table = res['distinct_values_table']
+            totals = res['totals']
             totals_table = res['totals_table']
             if sql.lower() in sql_lower:
                 continue
@@ -44,13 +46,27 @@ class Answerz(Resource):
             out.append(result['Output'])
             print(result['Output'])
             tables.append({'rows': res['main_table']['rows'], 'cols': res['main_table']['cols']})
+        if len(tables) > 1:
+            distinct_values = [{'name': list(val[0].keys())[1], 'count': val[0][list(val[0].keys())[1]]} for val in out]
+            distinct_values_table_cols = [
+                {'field': key, 'headerName': '', 'flex': 1} for key in
+                list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
+            distinct_values_table_rows = [{'id': ix + 1, 'type': row['name'].split('.')[1].split(' ')[0], **row} for
+                                          ix, row in enumerate(
+                    distinct_values)] if len(distinct_values) > 1 else []
+            distinct_values_table = {'cols': distinct_values_table_cols,
+                                     'rows': distinct_values_table_rows}
+        else:
+            distinct_values = distinct_values[0]['Output'] if distinct_values else ''
+            distinct_values_table = distinct_values_table
         sql_lower = list(set(sql_lower))
         final_ret = {"status": "Success",
                      "message": out,
                      "tables": tables,
                      "queries": sql_lower,
-                     "other_result": distinct_values[0]['Output'] if distinct_values else totals_table[0][
-                         'Output'] if totals_table and len(sql_lower) == 1 else '',
-                     "other_result_table": other_results_table,
+                     "totals": totals[0]['Output'] if totals and len(sql_lower) == 1 else '',
+                     "totals_table": totals_table,
+                     "distinct_values": distinct_values,
+                     "distinct_values_table": distinct_values_table,
                      'follow_up': follow_up}
         return final_ret
