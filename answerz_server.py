@@ -136,6 +136,7 @@ class QueryBlock:
         self.is_total = False
         self.unpivot_selects = []
         self.unpivot_cols = []
+        self.groups_to_skip = []
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -159,8 +160,9 @@ class QueryBlock:
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
         # This is a way to ensure the array is COPIED and not REFERENCED. as we will be modifying the array
-        allSelects = self.groups[:]
+        allSelects = [group for group in self.groups[:] if group[0] not in self.groups_to_skip]
         allSelects.extend(self.selects)
+
         return allSelects
 
     def merge(self, qb_other):
@@ -200,8 +202,8 @@ class QueryBlockRenderer:
 
         cond_sql = self.renderConditions(qb)
         if qb.with_query and qb.conditions:
-            qb.with_query.selects = [["SUM({})".format(
-                ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_valid']]
+            qb.with_query.selects = [['COUNT(*)', 'Total_Responses'], ["SUM({})".format(
+                ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'Valid_Responses']]
         if cond_sql:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
@@ -218,31 +220,37 @@ class QueryBlockRenderer:
             if 'total' not in qb.tables:
                 qb.addTable('total')
             if not qb.is_total:
+                qb.selects.append(
+                    ["CAST(CAST({} * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(
+                        qb.with_query.selects[-1][-1], qb.with_query.selects[0][-1]),
+                        '{}_Percentage'.format(qb.with_query.selects[-1][-1])])
+                # qb.groups.append([qb.with_query.selects[0][-1], qb.with_query.selects[0][-1]])
                 for select in qb.with_query.selects:
-                    qb.selects.append(
-                        ["CAST(CAST({} * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(select[0], select[-1]),
-                         'percentage {}'.format(select[-1])])
                     qb.groups.append([select[-1], select[-1]])
+                qb.groups_to_skip.append(qb.with_query.selects[0][-1])
 
             if not qb.is_total:
                 qb.totals = QueryBlock()
                 qb.totals.is_total = True
                 qb.totals.addTable(qb.tables)
                 qb.totals.with_query = QueryBlock()
-                qb.totals.with_query.selects = [[qb.selects[0][0], 'total']]
+                qb.totals.with_query.selects = [[qb.selects[0][0], 'Total_Records']]
                 qb.totals.with_query.tables = qb.tables[0:1]
                 qb.totals.with_query.joins = qb.joins
-                qb.totals.groups.append(['total', 'total'])
+                qb.totals.groups.append(['Total_Records', 'Total_Records'])
                 if qb.conditions:
                     qb.totals.with_query.selects.append(["SUM({})".format(
-                        ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_valid'])
+                        ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])),
+                        'Valid_Responses'])
                     qb.totals.with_query.selects.append(["SUM({})".format(
-                        ' * '.join(["IIF({} = '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'total_blanks'])
-                    qb.totals.groups.append(['total_valid', 'total_valid'])
-                    qb.totals.groups.append(['total_blanks', 'total_blanks'])
+                        ' * '.join(["IIF({} = '', 1, 0)".format(cond[1]) for cond in qb.conditions])),
+                        'Blanks_or_Nulls'])
+                    qb.totals.groups.append(['Valid_Responses', 'Valid_Responses'])
+                    qb.totals.groups.append(['Blanks_or_Nulls', 'Blanks_or_Nulls'])
                 qb.totals.unpivot_selects = [['col', 'col'], ['value', 'value'],
-                                             ["cast(cast(value * 100.0 / [total] as decimal(10, 2)) as varchar) + '%'",
-                                              'percentage']]
+                                             [
+                                                 "cast(cast(value * 100.0 / [Total_Records] as decimal(10, 2)) as varchar) + '%'",
+                                                 'percentage']]
                 qb.totals.unpivot_cols = [col[0] for col in qb.totals.groups]
 
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
@@ -641,10 +649,10 @@ class AggregationByDescriptionIntentDecoder:
                     if ("field" in col and col["field"]):
                         if (col["distinct"]):
                             qb.selects.append(["Count(distinct dbo.{}.{})".format(
-                                qb.tables[0], col["field"]), "Count_" + col["field"]])
+                                qb.tables[0], col["field"]), qb.queryIntent[0]])
                         else:
                             qb.selects.append(
-                                ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                                ["Count({})".format(col["field"]), qb.queryIntent[0]])
                         with_qb = QueryBlock()
                         with_qb.addTable(table)
                         with_qb.joins = qb.joins
@@ -661,7 +669,7 @@ class AggregationByDescriptionIntentDecoder:
                             field = "{}dbo.{}.{}".format('distinct ' if col['distinct'] else '', qb.tables[0],
                                                          col["field"])
 
-                        qb.selects.append(["Avg({})".format(field), "Avg_" + col['field']])
+                        qb.selects.append(["Avg({})".format(field), "Avg_" + qb.queryIntent[0]['field']])
 
         if _groupAction:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
@@ -687,7 +695,7 @@ class AggregationByDescriptionIntentDecoder:
                 qb.selects.append([
                     "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                         count=qb.selects[0][0]),
-                    'percentage'])
+                    'Percentage'])
                 qb2 = QueryBlock()
                 qb2.selects = [["'Total'", qb.groups[0][1]],
                                ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
@@ -766,10 +774,10 @@ class CrossByFieldNameIntentDecoder:
                 if "field" in col and col["field"]:
                     if col["distinct"]:
                         qb.selects.append(["Count(distinct dbo.{}.{})".format(
-                            qb.tables[0], col["field"]), "Count_" + col["field"]])
+                            qb.tables[0], col["field"]), qb.queryIntent[0]])
                     else:
                         qb.selects.append(
-                            ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                            ["Count({})".format(col["field"]), qb.queryIntent[0]])
                 else:
                     qb.selects.append(["Count()", "Count"])
 
@@ -817,10 +825,10 @@ class AggregationByLogicalYesDecoder:
                     if ("field" in col and col["field"]):
                         if (col["distinct"]):
                             qb.selects.append(["Count(distinct {})".format(
-                                col["field"]), "Count_" + col["field"]])
+                                col["field"]), qb.queryIntent[0]])
                         else:
                             qb.selects.append(
-                                ["Count({})".format(col["field"]), "Count_" + col["field"]])
+                                ["Count({})".format(col["field"]), qb.queryIntent[0]])
                     else:
                         qb.selects.append(["Count()", "Count"])
 
@@ -1749,7 +1757,23 @@ class AnswerzProcessor():
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
 
-                rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
+                if len(result['Output']) == 1:
+                    row = result['Output'][0]
+                    cols = [{'field': 'col', 'headerName': '', 'flex': 1},
+                            {'field': 'val', 'headerName': '', 'flex': 1}]
+                    rows = [{'id': ix + 1, 'col': key.replace('_', ' ') if '.' not in key else pq.queryIntent[0],
+                             'val': val} for
+                            ix, (key, val) in enumerate(row.items())]
+                else:
+                    cols = [
+                        {'field': key,
+                         'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
+                         'flex': 1}
+                        for key
+                        in
+                        list(result['Output'][0].keys())] if \
+                        result['Output'] else []
+                    rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
 
                 totals_table = self.queryProcessor.generate_and_run_query(pq.totals) if pq.totals else None
 

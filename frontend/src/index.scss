@@ -12,6 +12,13 @@ code {
   monospace;
 }
 
+
+.MuiDataGrid-row {
+  :nth-child(2) {
+    background-color: rgba(235, 235, 235, .7)
+  }
+}
+
 div {
   .bordered {
     outline: .5px solid lightgray;

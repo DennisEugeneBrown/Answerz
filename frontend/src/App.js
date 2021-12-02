@@ -61,7 +61,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.13'
+    const versionNumber = '2.0.14'
 
     const [getInputState, setInputState] = useState('');
 
@@ -238,24 +238,24 @@ function App() {
 
 
     const columns = [
-        {field: 'id', headerName: 'ID', width: 90},
+        {field: 'id', headerName: 'ID', flex: 1},
         {
             field: 'firstName',
             headerName: 'First name',
-            width: 150,
+            flex: 1,
             editable: true,
         },
         {
             field: 'lastName',
             headerName: 'Last name',
-            width: 150,
+            flex: 1,
             editable: true,
         },
         {
             field: 'age',
             headerName: 'Age',
             type: 'number',
-            width: 110,
+            flex: 1,
             editable: true,
         },
         {
@@ -263,7 +263,7 @@ function App() {
             headerName: 'Full name',
             description: 'This column has a value getter and is not sortable.',
             sortable: false,
-            width: 160,
+            flex: 1,
             valueGetter: (params) =>
                 `${params.getValue(params.id, 'firstName') || ''} ${
                     params.getValue(params.id, 'lastName') || ''
@@ -372,11 +372,6 @@ function App() {
                                                 </div>
                                             </form>
                                         </Col>
-                                        {/*<form className='input' onSubmit={handleSubmit}>*/}
-                                        {/*    <input autoComplete="off" name="name"*/}
-                                        {/*           placeholder='Speak or Type Command Here'*/}
-                                        {/*           onChange={handleChange}/>*/}
-                                        {/*</form>*/}
                                     </Row>
                                 </div>
                             </Container>
@@ -408,6 +403,22 @@ function App() {
                                 'Listening..'
                                 :
                                 ''}</div>
+                        {/*<div style={{*/}
+                        {/*    height: '100%',*/}
+                        {/*    width: '100%',*/}
+                        {/*    'padding-bottom': '5%',*/}
+                        {/*    'padding-top': '5%'*/}
+                        {/*}}><DataGrid*/}
+                        {/*    theme={theme}*/}
+                        {/*    rows={rows}*/}
+                        {/*    density='standard'*/}
+                        {/*    columns={columns}*/}
+                        {/*    pageSize={5}*/}
+                        {/*    checkboxSelection*/}
+                        {/*    onSelectionModelChange={(newSelection) => {*/}
+                        {/*        setFilters(newSelection);*/}
+                        {/*    }}*/}
+                        {/*/></div>*/}
                         {getListening ?
                             ''
                             :
@@ -426,7 +437,9 @@ function App() {
                                                 'padding-bottom': '5%',
                                                 'padding-top': '5%'
                                             }}>
-                                                Choose One or more
+                                                <div style={{'text-align': 'left', 'margin-left': '2vw'}}>
+                                                    Choose One or more
+                                                </div>
                                                 <div style={{
                                                     height: '100%',
                                                     width: '100%',
@@ -449,21 +462,23 @@ function App() {
                                             <div>
                                                 {getTable.data.tables.length > 1 ?
                                                     <div style={{
-                                                        height: '100%',
                                                         width: '100%',
                                                         'padding-bottom': '5%',
                                                         'padding-top': '5%'
                                                     }}>
-                                                        Choose One or more
+                                                        <div style={{'text-align': 'left', 'margin-left': '2vw'}}>
+                                                            Choose One or more
+                                                        </div>
                                                     </div> :
                                                     <div>
                                                         {getTable.data.tables.map((value, index) =>
-                                                            <div> {getTable.data.queries[index]}
-                                                                <div style={{
-                                                                    height: '100%', width: '100%',
-                                                                    'padding-bottom': '2%',
-                                                                    'padding-top': '2%'
-                                                                }}>
+                                                            <div style={{
+                                                                width: '100%',
+                                                                'padding-bottom': '2%',
+                                                                'padding-top': '2%'
+                                                            }}>
+                                                                {/*{getTable.data.queries[index]}*/}
+                                                                <div>
                                                                     <DataGrid
                                                                         theme={theme}
                                                                         rows={value.rows}
@@ -472,19 +487,24 @@ function App() {
                                                                         checkboxSelection
                                                                     />
                                                                 </div>
-                                                                <Button
-                                                                    onClick={handleOpen}>Table Properties
-                                                                </Button>
+                                                                {/*<Button*/}
+                                                                {/*    onClick={handleOpen}>Table Properties*/}
+                                                                {/*</Button>*/}
                                                             </div>)}</div>}
                                                 {getTable.data.totals ?
                                                     <div style={{
-                                                        height: '100%',
                                                         width: '100%',
                                                         'padding-bottom': '5%',
                                                         'padding-top': '5%'
                                                     }}>
                                                         <div style={{
-                                                            height: '100%',
+                                                            'margin-top': '15vw',
+                                                            'text-align': 'left',
+                                                            'margin-left': '2vw'
+                                                        }}>
+                                                            Quality Table
+                                                        </div>
+                                                        <div style={{
                                                             width: '100%',
                                                             'padding-bottom': '5%',
                                                             'padding-top': '5%'
@@ -500,7 +520,7 @@ function App() {
                                                     </div> : ''}
                                             </div>}
 
-                                        {getTable.data.distinct_values ?
+                                        {getTable.data.distinct_values && getTable.data.distinct_values_table.rows.length ?
                                             <div style={{
                                                 height: '100%',
                                                 width: '100%',
