@@ -47,12 +47,14 @@ class Answerz(Resource):
             print(result['Output'])
             tables.append({'rows': res['main_table']['rows'], 'cols': res['main_table']['cols']})
         if len(tables) > 1:
-            distinct_values = [{'name': list(val[0].keys())[1], 'count': val[0][list(val[0].keys())[1]]} for val in out]
+            distinct_values = [{'name': list(val[0].keys())[0], 'count': val[0][list(val[0].keys())[0]]} for val in out]
             distinct_values_table_cols = [
                 {'field': key, 'headerName': '', 'flex': 1} for key in
                 list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
-            distinct_values_table_rows = [{'id': ix + 1, 'type': row['name'].split('.')[1].split(' ')[0], **row} for
-                                          ix, row in enumerate(
+            distinct_values_table_rows = [
+                {'id': ix + 1, 'type': row['name'].split('.')[1].split(' ')[0] if '.' in row['name'] else row['name'],
+                 **row} for
+                ix, row in enumerate(
                     distinct_values)] if len(distinct_values) > 1 else []
             distinct_values_table = {'cols': distinct_values_table_cols,
                                      'rows': distinct_values_table_rows}

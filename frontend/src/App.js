@@ -61,7 +61,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.14'
+    const versionNumber = '2.0.15'
 
     const [getInputState, setInputState] = useState('');
 
@@ -443,37 +443,33 @@ function App() {
                                             </div>
                                             :
                                             <div>
-                                                {getTable.data.tables.length > 1 ?
+                                                {getTable.data.tables.map((value, index) =>
                                                     <div style={{
                                                         width: '100%',
-                                                        'padding-bottom': '5%',
-                                                        'padding-top': '5%'
+                                                        'padding-bottom': '2%',
+                                                        'padding-top': '2%'
                                                     }}>
-                                                        <div style={{'text-align': 'left', 'margin-left': '2vw'}}>
-                                                            Choose One or more
-                                                        </div>
-                                                    </div> :
-                                                    <div>
-                                                        {getTable.data.tables.map((value, index) =>
-                                                            <div style={{
-                                                                width: '100%',
-                                                                'padding-bottom': '2%',
-                                                                'padding-top': '2%'
+                                                        {/*{getTable.data.queries[index]}*/}
+                                                        <span
+                                                            style={{
+                                                                'font-size': 'xx-large',
+                                                                'margin-bottom': '50px'
                                                             }}>
-                                                                {/*{getTable.data.queries[index]}*/}
-                                                                <div>
-                                                                    <DataGrid
-                                                                        theme={theme}
-                                                                        rows={value.rows}
-                                                                        columns={value.cols}
-                                                                        pageSize={5}
-                                                                        checkboxSelection
-                                                                    />
-                                                                </div>
-                                                                {/*<Button*/}
-                                                                {/*    onClick={handleOpen}>Table Properties*/}
-                                                                {/*</Button>*/}
-                                                            </div>)}</div>}
+                                                        {Object.keys(getTable.data.message[index][0])[0]}
+                                                            </span>
+                                                        <div>
+                                                            <DataGrid
+                                                                theme={theme}
+                                                                rows={value.rows}
+                                                                columns={value.cols}
+                                                                pageSize={50}
+                                                                checkboxSelection
+                                                            />
+                                                        </div>
+                                                        {/*<Button*/}
+                                                        {/*    onClick={handleOpen}>Table Properties*/}
+                                                        {/*</Button>*/}
+                                                    </div>)}
                                                 {getTable.data.totals ?
                                                     <div style={{
                                                         width: '100%',

@@ -160,8 +160,9 @@ class QueryBlock:
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
         # This is a way to ensure the array is COPIED and not REFERENCED. as we will be modifying the array
-        allSelects = [group for group in self.groups[:] if group[0] not in self.groups_to_skip]
-        allSelects.extend(self.selects)
+        allSelects = [select for select in self.selects if select[0] not in self.groups_to_skip]
+        allSelects.extend(
+            [group for group in self.groups[:] if group[0] not in self.groups_to_skip and group not in self.selects])
 
         return allSelects
 
@@ -220,14 +221,15 @@ class QueryBlockRenderer:
             if 'total' not in qb.tables:
                 qb.addTable('total')
             if not qb.is_total:
+                # qb.groups.append([qb.with_query.selects[0][-1], qb.with_query.selects[0][-1]])
+                for select in qb.with_query.selects:
+                    qb.selects.append([select[-1], select[-1]])
+                    qb.groups.append([select[-1], select[-1]])
+                qb.groups_to_skip.append(qb.with_query.selects[0][-1])
                 qb.selects.append(
                     ["CAST(CAST({} * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(
                         qb.with_query.selects[-1][-1], qb.with_query.selects[0][-1]),
                         '{}_Percentage'.format(qb.with_query.selects[-1][-1])])
-                # qb.groups.append([qb.with_query.selects[0][-1], qb.with_query.selects[0][-1]])
-                for select in qb.with_query.selects:
-                    qb.groups.append([select[-1], select[-1]])
-                qb.groups_to_skip.append(qb.with_query.selects[0][-1])
 
             if not qb.is_total:
                 qb.totals = QueryBlock()
@@ -1583,6 +1585,8 @@ class LuisIntentProcessor:
         if len(geography_entities_found) > 1 and this_intent != 'cross-by-field-name' and 'compare' not in q[
             'query'].lower():
             # Build the initial query block
+            geo_ents = []
+            geo_ents_ = {}
             for entity in geography_entities_found:
 
                 # If a keep matches on index
@@ -1600,13 +1604,27 @@ class LuisIntentProcessor:
                         else:
                             skip = True
                 if not skip:
-                    entity_list, query = intent_decoder.decode(
-                        this_intent, entity_list, prev_q=prev_q)
-                    entity_list_ = [
-                        entity_ for entity_ in entity_list if
-                        entity_ not in geography_entities_found or entity_ == entity]
-                    query = self.process_entity_list(entity_list_, query)
-                    queries.append(query)
+                    geo_ents.append(entity)
+
+
+
+            entity_list_ = [
+                entity_ for entity_ in entity_list if
+                entity_ not in geography_entities_found]
+            lists = []
+            texts = []
+            for ent in geo_ents:
+                if not lists or ent['text'] in texts:
+                    lists.append(entity_list_ + [ent])
+                else:
+                    for i, l in enumerate(lists):
+                        lists[i] = l + [ent]
+                texts.append(ent['text'])
+            for lst in lists:
+                entity_list, query = intent_decoder.decode(
+                    this_intent, entity_list, prev_q=prev_q)
+                query = self.process_entity_list(lst, query)
+                queries.append(query)
 
         else:
 
