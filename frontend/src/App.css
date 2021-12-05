@@ -42,19 +42,21 @@
 .rvi-microphone {
     top: 0 !important;
     padding-top: 0 !important;
-    width: calc(3% * var(--landscape-width)) !important;
+    margin-right: 5px !important;
+    width: calc(7% * var(--landscape-width)) !important;
     height: 100% !important;
-    left: 2vw !important;
+    left: 0.5vw !important;
+    right: 2vw !important;
 }
-
+/* 
 .css-1z4p5c-MuiDataGrid-root {
-    font-size: 1.5vw !important;
-}
+    font-size: 3vw !important;
+} */
 
-.MuiButton-root {
+/* .MuiButton-root {
     font-size: 1vw !important;
     margin: 2vw !important;
-}
+} */
 
 
 

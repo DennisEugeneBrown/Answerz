@@ -56,8 +56,8 @@ function App() {
     const [getScriptIndex, setScriptIndex] = useState(0);
     const [getFilters, setFilters] = useState([]);
     const [getState, setState] = useState({
-        leftOpen: true,
-        rightOpen: true,
+        leftOpen: false,
+        rightOpen: false,
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
@@ -403,28 +403,12 @@ function App() {
                                 'Listening..'
                                 :
                                 ''}</div>
-                        {/*<div style={{*/}
-                        {/*    height: '100%',*/}
-                        {/*    width: '100%',*/}
-                        {/*    'padding-bottom': '5%',*/}
-                        {/*    'padding-top': '5%'*/}
-                        {/*}}><DataGrid*/}
-                        {/*    theme={theme}*/}
-                        {/*    rows={rows}*/}
-                        {/*    density='standard'*/}
-                        {/*    columns={columns}*/}
-                        {/*    pageSize={5}*/}
-                        {/*    checkboxSelection*/}
-                        {/*    onSelectionModelChange={(newSelection) => {*/}
-                        {/*        setFilters(newSelection);*/}
-                        {/*    }}*/}
-                        {/*/></div>*/}
                         {getListening ?
                             ''
                             :
                             <div style={{
                                 height: '100%',
-                                width: '100%',
+                                width: '80%',
                                 'padding-bottom': '5%',
                                 'padding-top': '5%'
                             }}>{!submitting ?
@@ -433,7 +417,7 @@ function App() {
                                         {getTable.data.distinct_values && getTable.data.distinct_values_table.rows.length ?
                                             <div style={{
                                                 height: '100%',
-                                                width: '100%',
+                                                width: '80%',
                                                 'padding-bottom': '5%',
                                                 'padding-top': '5%'
                                             }}>
@@ -442,12 +426,11 @@ function App() {
                                                 </div>
                                                 <div style={{
                                                     height: '100%',
-                                                    width: '100%',
+                                                    width: '80% !important',
                                                     'padding-bottom': '5%',
                                                     'padding-top': '5%'
                                                 }}>
                                                     <DataGrid
-                                                        theme={theme}
                                                         rows={getTable.data.distinct_values_table.rows}
                                                         columns={getTable.data.distinct_values_table.cols}
                                                         pageSize={5}

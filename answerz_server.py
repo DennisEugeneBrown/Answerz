@@ -201,9 +201,6 @@ class QueryBlockRenderer:
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
         cond_sql = self.renderConditions(qb)
-        if qb.with_query and qb.conditions:
-            qb.with_query.selects = [['COUNT(*)', 'Total_Responses'], ["SUM({})".format(
-                ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'Valid_Responses']]
         if cond_sql:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
@@ -214,6 +211,9 @@ class QueryBlockRenderer:
 
             qb.selects[0][1] = cond_sql
 
+        if qb.with_query and qb.conditions:
+            qb.with_query.selects = [['COUNT(*)', 'Total_Responses'], ["SUM({})".format(
+                ' * '.join(["IIF({} != '', 1, 0)".format(cond[1]) for cond in qb.conditions])), 'Valid_Responses']]
         add_with_table = False
         if (not qb.groups and qb.with_query and qb.conditions) or qb.is_total:
             add_with_table = True
