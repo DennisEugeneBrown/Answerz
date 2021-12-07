@@ -583,8 +583,16 @@ class AggregationByDescriptionIntentDecoder:
                     if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
                         'startIndex']:
                         entities[ix]['type'] = number
+
+        number_type_columns = [dim['name'].lower() for dim in mapped_element['Dimensions'] if dim['type'] == 'int']
+        entity_types = [ent['type'].lower() for ent in entities]
+        num_present = False
+        for col in number_type_columns:
+            if col in entity_types:
+                num_present = True
+                break
         for ix, entity in enumerate(entities):
-            if entity['type'] == 'builtin.number':
+            if entity['type'] == 'builtin.number' and not num_present:
                 entities[ix]['type'] = 'age'
 
         qb = QueryBlock((_element, _aggregation))
