@@ -136,6 +136,7 @@ class QueryBlock:
         self.unpivot_selects = []
         self.unpivot_cols = []
         self.groups_to_skip = []
+        self.cond_sep = 'AND'
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -378,7 +379,7 @@ class QueryBlockRenderer:
         # Handle the group selects
         for term in qb.conditions:
             sql = sql + sep + encodeCondition(term)
-            sep = " AND "
+            sep = ' ' + qb.cond_sep.upper() + ' '
 
         return sql
 
@@ -555,8 +556,9 @@ class AggregationByDescriptionIntentDecoder:
         _aggregation_ix, _aggregation = self.findEntityByType(entities, "_Aggregations")
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction", return_entity=True)
-        _comparators = self.findEntityByType(entities, "_Comparator", return_entity=True,
-                                             return_many=True)
+        _comparators = self.findEntityByType(entities, "_Comparator", return_entity=True, return_many=True)
+        _conditionSeparator_ix, _condition_Separator = self.findEntityByType(entities, "_ConditionSeparator",
+                                                                             return_entity=True)
         _stringOperator_ix, _stringOperator = self.findEntityByType(entities, "_StringOperators")
 
         _fieldNames, _fieldName_entities = self.findFieldNames(entities)
@@ -586,6 +588,9 @@ class AggregationByDescriptionIntentDecoder:
                 entities[ix]['type'] = 'age'
 
         qb = QueryBlock((_element, _aggregation))
+
+        if _condition_Separator:
+            qb.cond_sep = _condition_Separator['entity']
 
         comparators_mapping = {
             '<': 'lt',

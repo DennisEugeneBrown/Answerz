@@ -450,13 +450,12 @@ function App() {
                                                         'padding-bottom': '2%',
                                                         'padding-top': '2%'
                                                     }}>
-                                                        {/*{getTable.data.queries[index]}*/}
                                                         <span
                                                             style={{
                                                                 'font-size': 'xx-large',
                                                                 'margin-bottom': '50px'
                                                             }}>
-                                                        {Object.keys(getTable.data.message[index][0])[0]}
+                                                        {getTable.data.message[index][0]? Object.keys(getTable.data.message[index][0])[0]: ''}
                                                             </span>
                                                         <div>
                                                             <DataGrid
