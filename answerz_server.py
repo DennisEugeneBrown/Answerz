@@ -115,7 +115,6 @@ class DataMapRepo:
 class QueryBlock:
     def __init__(self, intent_summary=None):
         self.queryIntent = intent_summary
-        # self.table = None
         self.tables = []
         self.selects = []
         self.joins = []
@@ -193,9 +192,6 @@ class QueryBlock:
 class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
-
-        if qb.is_total:
-            print('hold on')
 
         if qb.count_conditions:
             qb.selects = self.processCountConditions(qb,
@@ -913,17 +909,6 @@ class BreakdownByIntentDecoder:
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
 
-        # if _groupAction:
-        # if _fieldName:
-        #     _, mapped_grouping = data_map_repo.findGrouping(
-        #         _element, _fieldName)
-        # elif _logicalLabel:
-        #     _, mapped_grouping = data_map_repo.findGrouping(
-        #         _element, _logicalLabel)
-        #     del entities[_logicalLabel_ix]
-        # else:
-        #     raise Exception('Something went wrong.')
-
         if mapped_grouping['joins']:
             qb.joins.extend(tuple(mapped_grouping['joins']))
         qb.groups.append(
@@ -1030,12 +1015,8 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
         if (len(values) == 1):
 
-            # aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
-            # elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
-
             entity_name = entity["type"]
             entity_value = values[0]
-            # print(entity_value)
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -1138,9 +1119,6 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             values = [entity]
 
         if (len(values) == 1):
-
-            # aggg:  {'entity': 'how many', 'type': '_Aggregations', 'startIndex': 0, 'endIndex': 7, 'resolution': {'values': ['Count']}}
-            # elem:  {'entity': 'calls', 'type': '_DataElement', 'startIndex': 9, 'endIndex': 13, 'resolution': {'values': ['Calls']}}
 
             entity_name = entity["type"]
             if 'resolution' in entity:
@@ -1605,8 +1583,6 @@ class LuisIntentProcessor:
                             skip = True
                 if not skip:
                     geo_ents.append(entity)
-
-
 
             entity_list_ = [
                 entity_ for entity_ in entity_list if

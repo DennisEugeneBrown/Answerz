@@ -13,18 +13,18 @@ code {
   monospace;
 }
 
-.MuiDataGrid-columnHeaderTitleContainer{
+.MuiDataGrid-columnHeaderTitleContainer {
   font-size: xx-large;
   justify-content: center
 
 }
 
-.MuiDataGrid-main{
+.MuiDataGrid-main {
   margin-bottom: 10vw;
 }
 
 
-.MuiDataGrid-columnHeaderTitle{
+.MuiDataGrid-columnHeaderTitle {
   font-size: xx-large;
 }
 
@@ -32,6 +32,7 @@ code {
   :nth-child(2) {
     background-color: rgba(235, 235, 235, .7)
   }
+
   font-size: xx-large;
 }
 
@@ -41,7 +42,7 @@ div {
   }
 }
 
-DataGrid{
+DataGrid {
   width: 80% !important;
 }
 
@@ -290,7 +291,7 @@ input {
   sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: calc(6% * var(--landscape-width));
+  font-size: calc(5% * var(--landscape-width));
   vertical-align: middle;
   padding-top: 4px;
   padding-left: 0.7vw;
