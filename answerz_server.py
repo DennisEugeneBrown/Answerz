@@ -563,6 +563,22 @@ class AggregationByDescriptionIntentDecoder:
 
         _fieldNames, _fieldName_entities = self.findFieldNames(entities)
 
+        # priority for fieldnames always
+
+        for _fieldName in _fieldName_entities:
+            start_index = _fieldName['startIndex']
+            end_index = _fieldName['startIndex'] + _fieldName['length']
+            ixs_to_remove = []
+            for ix, entity in enumerate(entities):
+                if entity == _fieldName:
+                    continue
+                entity_start_index = entity['startIndex']
+                entity_end_index = entity['startIndex'] + entity['length']
+                if entity_start_index >= start_index and entity_end_index <= end_index:
+                    ixs_to_remove.append(ix)
+            for ix in reversed(ixs_to_remove):
+                entities.pop(ix)
+
         data_map_repo = DataMapRepo(self.data_map)
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
@@ -708,9 +724,10 @@ class AggregationByDescriptionIntentDecoder:
                         count=qb.selects[0][0]),
                     'Percentage'])
                 qb2 = QueryBlock()
-                qb2.selects = [["'Total'", qb.groups[0][1]],
-                               ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
-                               ["'100%'", qb.selects[1][1]]]
+                qb2.selects = [['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+                               ["'100%'", qb.selects[1][1]],
+                               ["'Total'", qb.groups[0][1]]]
+
                 qb2.queryIntent = qb.queryIntent
                 qb2.tables = qb.tables
                 qb.unions.append(qb2)
@@ -897,6 +914,20 @@ class BreakdownByIntentDecoder:
 
         _fieldNames, _fieldName_entities = self.findFieldNames(entities)
 
+        for _fieldName in _fieldName_entities:
+            start_index = _fieldName['startIndex']
+            end_index = _fieldName['startIndex'] + _fieldName['length']
+            ixs_to_remove = []
+            for ix, entity in enumerate(entities):
+                if entity == _fieldName:
+                    continue
+                entity_start_index = entity['startIndex']
+                entity_end_index = entity['startIndex'] + entity['length']
+                if entity_start_index >= start_index and entity_end_index <= end_index:
+                    ixs_to_remove.append(ix)
+            for ix in reversed(ixs_to_remove):
+                entities.pop(ix)
+
         data_map_repo = DataMapRepo(self.data_map)
         _, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
@@ -924,8 +955,8 @@ class BreakdownByIntentDecoder:
 
         if mapped_grouping['joins']:
             qb.joins.extend(tuple(mapped_grouping['joins']))
-        qb.groups.append(
-            (mapped_grouping['field'], mapped_grouping['name']))
+        # qb.groups.append(
+        #     (mapped_grouping['field'], mapped_grouping['name']))
         if 'sort_fields' in mapped_grouping:
             for sort_field in mapped_grouping['sort_fields']:
                 if qb.sorts and sort_field not in qb.sorts:
@@ -960,9 +991,9 @@ class BreakdownByIntentDecoder:
                     count=qb.selects[0][0]),
                 'percentage'])
             qb2 = QueryBlock()
-            qb2.selects = [["'Total'", qb.groups[0][1]],
-                           ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
-                           ["'100%'", qb.selects[1][1]]]
+            qb2.selects = [['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+                           ["'100%'", qb.selects[1][1]],
+                           ["'Total'", qb.groups[0][1]]]
             qb2.queryIntent = qb.queryIntent
             qb2.tables = qb.tables
             qb.unions.append(qb2)
@@ -1737,7 +1768,7 @@ class AnswerzProcessor():
         pprint(data)
         return data
 
-    def run_query(self, text, prev_query=None):
+    def run_query(self, text, prev_query=None, return_qs=False):
         q = self.interpret(text)
         if prev_query:
             prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
@@ -1801,7 +1832,7 @@ class AnswerzProcessor():
                     list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
-                distinct_values_table_rows = [{'id': ix + 1, **row} for ix, row in enumerate(
+                distinct_values_table_rows = [{'id': ix + 1, 'value': pq.queryIntent[-1] + ' ' + pq.queryIntent[0] + ' From ' + ' and '.join([row[cond[1]] + ' ' + cond[1].split('.')[-1] for cond in pq.conditions]),**row} for ix, row in enumerate(
                     distinct_values_table[0]['Output'])] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
@@ -1816,6 +1847,8 @@ class AnswerzProcessor():
                                 'distinct_values_table': {'cols': distinct_values_table_cols,
                                                           'rows': distinct_values_table_rows}
                                 })
+        if return_qs:
+            return results, pqs
         return results
 
     def run_sql_query(self, sql, headers):

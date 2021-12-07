@@ -62,7 +62,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.15'
+    const versionNumber = '2.0.16'
 
     const [getInputState, setInputState] = useState('');
 
@@ -168,23 +168,11 @@ function App() {
     function handleFilter() {
         let rows = getTable.data.distinct_values_table.rows
         let cols = getTable.data.distinct_values_table.cols
+        console.log(cols)
         let selected = getFilters.map(i => rows[i - 1])
-        let to_replace = '';
-        let to_replace_by = '';
-        if (selected[0].type) {
-            to_replace_by = selected[0].type;
-            to_replace = '';
-        } else {
-            to_replace_by = selected[0][cols[0].field];
-            to_replace = cols[1].field.split('like')[1].replaceAll('%', '').replaceAll("'", '').trim();
-        }
-        let input = getInputState;
-        if (to_replace) {
-            input = getInputState.replace(to_replace, to_replace_by);
-        } else {
-            input = getInputState + ' ' + to_replace_by;
-        }
-        setInputState(input)
+        console.log(selected)
+        let input = selected[0].value;
+        setInputState(selected[0].value)
         submit(input)
     }
 
@@ -455,7 +443,7 @@ function App() {
                                                                 'font-size': 'xx-large',
                                                                 'margin-bottom': '50px'
                                                             }}>
-                                                        {getTable.data.message[index][0]? Object.keys(getTable.data.message[index][0])[0]: ''}
+                                                        {getTable.data.message[index][0] ? Object.keys(getTable.data.message[index][0])[0] : ''}
                                                             </span>
                                                         <div>
                                                             <DataGrid

@@ -43,4 +43,4 @@ api.add_resource(Answerz, '/answerz')
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:1234')
 
-# Timer(1, open_browser).start()
+Timer(1, open_browser).start()

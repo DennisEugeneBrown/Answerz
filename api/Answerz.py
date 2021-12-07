@@ -23,7 +23,7 @@ class Answerz(Resource):
         text = args['text']
         prev_query = args['prev_query']
         print(text)
-        results = ap.run_query(text, prev_query=prev_query)
+        results, qs = ap.run_query(text, prev_query=prev_query, return_qs=True)
         sql_lower = []
         out = []
         distinct_values = distinct_values_table = None
@@ -31,7 +31,7 @@ class Answerz(Resource):
         follow_up = False
         tables = []
         other_results_table = []
-        for res in results:
+        for res_ix, res in enumerate(results):
             if res['follow_up']:
                 follow_up = True
             result = res['result']
@@ -52,7 +52,9 @@ class Answerz(Resource):
                 {'field': key, 'headerName': '', 'flex': 1} for key in
                 list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
             distinct_values_table_rows = [
-                {'id': ix + 1, 'type': row['name'].split('.')[1].split(' ')[0] if '.' in row['name'] else row['name'],
+                {'id': ix + 1, 'value': qs[ix].queryIntent[-1] + ' ' + qs[ix].queryIntent[0] + ' From ' + ' and '.join(
+                    [cond[-1] + ' ' + cond[1].split('.')[-1] for cond in qs[ix].conditions]),
+                 'type': row['name'].split('.')[1].split(' ')[0] if '.' in row['name'] else row['name'],
                  **row} for
                 ix, row in enumerate(
                     distinct_values)] if len(distinct_values) > 1 else []
