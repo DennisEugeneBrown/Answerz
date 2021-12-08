@@ -62,7 +62,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.16'
+    const versionNumber = '2.0.17'
 
     const [getInputState, setInputState] = useState('');
 
@@ -98,7 +98,7 @@ function App() {
         setSubmitting(true);
         axios.post('http://localhost:1234/answerz', {
             'text': inputValue.replace('  ', ' '),
-            'prev_query': (inputValue.toLowerCase().includes('group by') || inputValue.toLowerCase().includes('down by') || inputValue.toLowerCase().includes('out by')) ? getPrevQuery : ''
+            'prev_query': (inputValue.toLowerCase().includes('group') || inputValue.toLowerCase().includes('down by') || inputValue.toLowerCase().includes('out by')) ? getPrevQuery : ''
         })
             .then(response => {
                 console.log("Responded", response)

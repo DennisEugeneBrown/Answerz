@@ -52,8 +52,7 @@ class Answerz(Resource):
                 {'field': key, 'headerName': '', 'flex': 1} for key in
                 list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
             distinct_values_table_rows = [
-                {'id': ix + 1, 'value': qs[ix].queryIntent[-1] + ' ' + qs[ix].queryIntent[0] + ' From ' + ' and '.join(
-                    [cond[-1] + ' ' + cond[1].split('.')[-1] for cond in qs[ix].conditions]),
+                {'id': ix + 1, 'value': ap.generate_text_query(qs[ix], row),
                  'type': row['name'].split('.')[1].split(' ')[0] if '.' in row['name'] else row['name'],
                  **row} for
                 ix, row in enumerate(

@@ -11,6 +11,7 @@ import types
 import pyodbc
 import pprint
 import requests
+import itertools
 import traceback
 import numpy as np
 import pandas as pd
@@ -137,6 +138,7 @@ class QueryBlock:
         self.unpivot_cols = []
         self.groups_to_skip = []
         self.cond_sep = 'AND'
+        self.logical_label = False
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -186,6 +188,7 @@ class QueryBlock:
         self.comparators.extend(qb_other.comparators)
         self.is_compare = (self.is_compare or qb_other.is_compare)
         self.aggregation = qb_other.aggregation if qb_other.aggregation else self.aggregation
+        self.logical_label = qb_other.logical_label
         return True
 
 
@@ -594,11 +597,16 @@ class AggregationByDescriptionIntentDecoder:
         if len(numbers) == 1 and len(number_type_entities) == 1:
             entities[number_type_entities[0][1]]['type'] = numbers[0][0]
         else:
+            numbers_covered = []
             for number, num_entity_ix in numbers:
                 for ix, entity in enumerate(entities):
                     if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
                         'startIndex']:
                         entities[ix]['type'] = number
+                        numbers_covered.append(ix)
+            for ix, entity in enumerate(entities):
+                if entity['type'] == 'builtin.number' and ix not in numbers_covered:
+                    entities[ix]['type'] = 'age'
 
         number_type_columns = [dim['name'].lower() for dim in mapped_element['Dimensions'] if dim['type'] == 'int']
         entity_types = [ent['type'].lower() for ent in entities]
@@ -626,13 +634,14 @@ class AggregationByDescriptionIntentDecoder:
 
         comparators_position_mapping = {
             'or more': 'after',
-            'or less': 'after'
+            'or less': 'after',
+            'is not': 'after'
         }
 
         string_operators_mapping = {
-            'startsWith': "{} like '{}%'",
-            'endsWith': "{} like '%{}'",
-            'contains': "{} like '%{}%'",
+            'startsWith': "{} lk {}%",
+            'endsWith': "{} lk %{}",
+            'contains': "{} lk %{}%",
         }
 
         for _comparatorIx, _comparatorEntity in _comparators:
@@ -953,19 +962,19 @@ class BreakdownByIntentDecoder:
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
 
-        if mapped_grouping['joins']:
-            qb.joins.extend(tuple(mapped_grouping['joins']))
-        # qb.groups.append(
-        #     (mapped_grouping['field'], mapped_grouping['name']))
-        if 'sort_fields' in mapped_grouping:
-            for sort_field in mapped_grouping['sort_fields']:
-                if qb.sorts and sort_field not in qb.sorts:
-                    qb.sorts.append(sort_field)
-                if sort_field[0] != mapped_grouping['field']:
-                    qb.groups.append((sort_field[0], sort_field[0]))
-        else:
-            if qb.sorts and (mapped_grouping['field'], 'ASC') not in qb.sorts:
-                qb.sorts.append((mapped_grouping['field'], 'ASC'))
+        for mapped_grouping in mapped_groupings:
+            if mapped_grouping['joins']:
+                qb.joins.extend(tuple(mapped_grouping['joins']))
+            if 'sort_fields' in mapped_grouping:
+                for sort_field in mapped_grouping['sort_fields']:
+                    if qb.sorts and sort_field not in qb.sorts:
+                        qb.sorts.append(sort_field)
+                    if sort_field[0] != mapped_grouping['field']:
+                        qb.groups.append((sort_field[0], sort_field[0]))
+            else:
+                if qb.sorts and (mapped_grouping['field'], 'ASC') not in qb.sorts:
+                    qb.sorts.append((mapped_grouping['field'], 'ASC'))
+
         if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
                 _fieldNames or _logicalLabel):
             for mapped_grouping in mapped_groupings:
@@ -1107,11 +1116,13 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
                     if string_operators:
                         if ("." in field_name):  # already scoped
-                            qb.conditions.append(
-                                [(string_operators[0].format(field_name, entity_value)), '', ''])
+                            s = string_operators[0].format(field_name, entity_value)
+                            s = s.split(' ')
+                            qb.conditions.append([s[1], s[0], s[2]])
                         else:
-                            qb.conditions.append(
-                                [(string_operators[0].format(tables[0] + "." + field_name, entity_value)), '', ''])
+                            s = string_operators[0].format(tables[0] + "." + field_name, entity_value)
+                            s = s.split(' ')
+                            qb.conditions.append([s[1], s[0], s[2]])
                     elif exact_match:
                         if ("." in field_name):  # already scoped
                             qb.conditions.append(
@@ -1191,6 +1202,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 exact_match = False
 
             qb = QueryBlock(query_block.queryIntent)
+            qb.logical_label = True
 
             for table in tables:
                 if (type(table) == str):
@@ -1473,7 +1485,8 @@ class LuisIntentProcessor:
             elif not e["type"].startswith("_"):
                 print("No decoder for Entity", e["type"])
 
-        if [cond for cond in query.conditions if cond[0] == 'lk' or ' like ' in cond[0]]:
+        if [cond for cond in query.conditions if
+            cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
             query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
         if query.is_compare:
@@ -1631,15 +1644,22 @@ class LuisIntentProcessor:
             entity_list_ = [
                 entity_ for entity_ in entity_list if
                 entity_ not in geography_entities_found]
-            lists = []
-            texts = []
+
+            # lists = []
+            # texts = []
+            # for ent in geo_ents:
+            #     if not lists or ent['text'] in texts:
+            #         lists.append(entity_list_ + [ent])
+            #     else:
+            #         for i, l in enumerate(lists):
+            #             lists[i] = l + [ent]
+            #     texts.append(ent['text'])
+
+            ents = defaultdict(list)
             for ent in geo_ents:
-                if not lists or ent['text'] in texts:
-                    lists.append(entity_list_ + [ent])
-                else:
-                    for i, l in enumerate(lists):
-                        lists[i] = l + [ent]
-                texts.append(ent['text'])
+                ents[ent['text']].append(ent)
+            lists = [entity_list_ + list(perm) for perm in list(itertools.product(*[e for e in ents.values()]))]
+
             for lst in lists:
                 entity_list, query = intent_decoder.decode(
                     this_intent, entity_list, prev_q=prev_q)
@@ -1768,6 +1788,19 @@ class AnswerzProcessor():
         pprint(data)
         return data
 
+    def generate_text_query(self, qb, row):
+        # conditions = [cond[-1] + ' ' + cond[1].split('.')[-1] for cond in qb.conditions]
+        conditions = []
+        for cond in qb.conditions:
+            cond_value = cond[-1]
+            field_name = cond[1].split('.')[-1]
+            if '%' in cond_value:
+                cond_value = row[cond[1]]
+            if field_name.lower() == 'state':
+                cond_value = us.states.lookup(cond_value).name
+            conditions.append(cond_value + ' ' + field_name)
+        return qb.queryIntent[-1] + ' ' + qb.queryIntent[0] + ' From ' + ' and '.join(conditions)
+
     def run_query(self, text, prev_query=None, return_qs=False):
         q = self.interpret(text)
         if prev_query:
@@ -1832,8 +1865,10 @@ class AnswerzProcessor():
                     list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
-                distinct_values_table_rows = [{'id': ix + 1, 'value': pq.queryIntent[-1] + ' ' + pq.queryIntent[0] + ' From ' + ' and '.join([row[cond[1]] + ' ' + cond[1].split('.')[-1] for cond in pq.conditions]),**row} for ix, row in enumerate(
-                    distinct_values_table[0]['Output'])] if distinct_values_table and len(
+                distinct_values_table_rows = [{'id': ix + 1, 'value': self.generate_text_query(pq, row), **row} for ix, row
+                                              in
+                                              enumerate(
+                                                  distinct_values_table[0]['Output'])] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
                 results.append({'result': result,
