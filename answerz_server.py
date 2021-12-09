@@ -162,9 +162,10 @@ class QueryBlock:
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
         # This is a way to ensure the array is COPIED and not REFERENCED. as we will be modifying the array
-        allSelects = [select for select in self.selects if select[0] not in self.groups_to_skip]
+        allSelects = [group for group in self.groups[:] if
+                      group[0] not in self.groups_to_skip and group not in self.selects]
         allSelects.extend(
-            [group for group in self.groups[:] if group[0] not in self.groups_to_skip and group not in self.selects])
+            [select for select in self.selects if select[0] not in self.groups_to_skip])
 
         return allSelects
 
@@ -227,9 +228,9 @@ class QueryBlockRenderer:
                     qb.groups.append([select[-1], select[-1]])
                 qb.groups_to_skip.append(qb.with_query.selects[0][-1])
                 qb.selects.append(
-                    ["CAST(CAST({} * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(
-                        qb.with_query.selects[-1][-1], qb.with_query.selects[0][-1]),
-                        '{}_Percentage'.format(qb.with_query.selects[-1][-1])])
+                    ["CAST(CAST(COUNT(*) * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(
+                        qb.with_query.selects[0][-1]),
+                        'Percentage'.format(qb.with_query.selects[-1][-1])])
 
             if not qb.is_total:
                 qb.totals = QueryBlock()
@@ -732,14 +733,14 @@ class AggregationByDescriptionIntentDecoder:
                     "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                         count=qb.selects[0][0]),
                     'Percentage'])
-                qb2 = QueryBlock()
-                qb2.selects = [['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
-                               ["'100%'", qb.selects[1][1]],
-                               ["'Total'", qb.groups[0][1]]]
-
-                qb2.queryIntent = qb.queryIntent
-                qb2.tables = qb.tables
-                qb.unions.append(qb2)
+                # qb2 = QueryBlock()
+                # qb2.selects = [["'Total'", qb.groups[0][1]],
+                #                ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+                #                ["'100%'", qb.selects[1][1]]]
+                #
+                # qb2.queryIntent = qb.queryIntent
+                # qb2.tables = qb.tables
+                # qb.unions.append(qb2)
         # else:
 
         # qb.addTable("CallLog")
@@ -999,13 +1000,13 @@ class BreakdownByIntentDecoder:
                 "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                     count=qb.selects[0][0]),
                 'percentage'])
-            qb2 = QueryBlock()
-            qb2.selects = [['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
-                           ["'100%'", qb.selects[1][1]],
-                           ["'Total'", qb.groups[0][1]]]
-            qb2.queryIntent = qb.queryIntent
-            qb2.tables = qb.tables
-            qb.unions.append(qb2)
+            # qb2 = QueryBlock()
+            # qb2.selects = [["'Total'", qb.groups[0][1]],
+            #                ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
+            #                ["'100%'", qb.selects[1][1]]]
+            # qb2.queryIntent = qb.queryIntent
+            # qb2.tables = qb.tables
+            # qb.unions.append(qb2)
 
         return entities, qb
 
@@ -1865,7 +1866,8 @@ class AnswerzProcessor():
                     list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
-                distinct_values_table_rows = [{'id': ix + 1, 'value': self.generate_text_query(pq, row), **row} for ix, row
+                distinct_values_table_rows = [{'id': ix + 1, 'value': self.generate_text_query(pq, row), **row} for
+                                              ix, row
                                               in
                                               enumerate(
                                                   distinct_values_table[0]['Output'])] if distinct_values_table and len(

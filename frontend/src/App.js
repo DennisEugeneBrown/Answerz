@@ -62,7 +62,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.17'
+    const versionNumber = '2.0.18'
 
     const [getInputState, setInputState] = useState('');
 
@@ -443,14 +443,14 @@ function App() {
                                                                 'font-size': 'xx-large',
                                                                 'margin-bottom': '50px'
                                                             }}>
-                                                        {getTable.data.message[index][0] ? Object.keys(getTable.data.message[index][0])[0] : ''}
+                                                        {getTable.data.conditions}
                                                             </span>
                                                         <div>
                                                             <DataGrid
                                                                 theme={theme}
                                                                 rows={value.rows}
                                                                 columns={value.cols}
-                                                                pageSize={50}
+                                                                pageSize={100}
                                                                 checkboxSelection
                                                             />
                                                         </div>

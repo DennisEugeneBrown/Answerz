@@ -16,25 +16,26 @@ code {
 .MuiDataGrid-columnHeaderTitleContainer {
   font-size: xx-large;
   justify-content: center
-
 }
 
-.MuiDataGrid-main {
-  margin-bottom: 10vw;
-}
+//
+//.MuiDataGrid-main {
+//  margin-bottom: 10vw;
+//}
 
-
+//
 .MuiDataGrid-columnHeaderTitle {
-  font-size: xx-large;
+  font-size: xxx-large;
 }
 
 .MuiDataGrid-row {
   :nth-child(2) {
     background-color: rgba(235, 235, 235, .7)
   }
-
-  font-size: xx-large;
+  font-size: xxx-large;
 }
+
+
 
 div {
   .bordered {

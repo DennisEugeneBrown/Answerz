@@ -1,5 +1,5 @@
 import app
-from answerz_server import AnswerzProcessor
+from answerz_server import AnswerzProcessor, QueryBlockRenderer
 from flask_restful import Resource, reqparse
 
 
@@ -15,6 +15,7 @@ class Answerz(Resource):
 
         ap = AnswerzProcessor(
             app.app.config['DATAMAP'], app.app.config['DB'], app.app.config['LUIS'])
+        qbr = QueryBlockRenderer()
         parser = reqparse.RequestParser()
         parser.add_argument('text', type=str)
         parser.add_argument('prev_query', type=str)
@@ -31,6 +32,7 @@ class Answerz(Resource):
         follow_up = False
         tables = []
         other_results_table = []
+        out_qs = []
         for res_ix, res in enumerate(results):
             if res['follow_up']:
                 follow_up = True
@@ -42,12 +44,16 @@ class Answerz(Resource):
             totals_table = res['totals_table']
             if sql.lower() in sql_lower:
                 continue
+            out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
             out.append(result['Output'])
             print(result['Output'])
             tables.append({'rows': res['main_table']['rows'], 'cols': res['main_table']['cols']})
         if len(tables) > 1:
-            distinct_values = [{'name': list(val[0].keys())[0], 'count': val[0][list(val[0].keys())[0]]} for val in out]
+            distinct_values = [
+                {'name': qbr.renderConditions(out_qs[ix]),
+                 'count': sum([v[qbr.renderConditions(out_qs[ix])] for v in val])} for
+                ix, val in enumerate(out)]
             distinct_values_table_cols = [
                 {'field': key, 'headerName': '', 'flex': 1} for key in
                 list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
@@ -71,5 +77,6 @@ class Answerz(Resource):
                      "totals_table": totals_table,
                      "distinct_values": distinct_values,
                      "distinct_values_table": distinct_values_table,
-                     'follow_up': follow_up}
+                     'follow_up': follow_up,
+                     'conditions': ', '.join([qbr.renderConditions(q) for q in out_qs])}
         return final_ret
