@@ -553,7 +553,7 @@ class AggregationByDescriptionIntentDecoder:
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
 
-    def decode(self, intent_name, entities, prev_q=None):
+    def decode(self, intent_name, entities, prev_q=None, is_a_prev_query=False):
         # global DATA_MAP
 
         _element_ix, _element = self.findEntityByType(entities, "_DataElement")
@@ -654,7 +654,7 @@ class AggregationByDescriptionIntentDecoder:
             qb.string_operators.append(string_operators_mapping[_stringOperator])
 
         mapped_groupings = []
-        if _groupAction:
+        if _groupAction and not is_a_prev_query:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
                 if _fieldNames:
                     for ix, _fieldName in enumerate(_fieldNames):
@@ -775,7 +775,7 @@ class CrossByFieldNameIntentDecoder:
                 fieldNames.append(e['entity'])
         return fieldNames
 
-    def decode(self, intent_name, entities, prev_q=None):
+    def decode(self, intent_name, entities, prev_q=None, is_a_prev_query=False):
         # global DATA_MAP
 
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction")
@@ -833,7 +833,7 @@ class AggregationByLogicalYesDecoder:
         return -1, None
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
-    def decode(self, intent_name, entities, prev_q=None):
+    def decode(self, intent_name, entities, prev_q=None, is_a_prev_query=False):
         # global DATA_MAP
 
         _element_ix, _element = self.findEntityByType(entities, "_DataElement")
@@ -907,7 +907,7 @@ class BreakdownByIntentDecoder:
         return fieldNames, fieldName_entities
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
-    def decode(self, intent_name, entities, prev_q=None):
+    def decode(self, intent_name, entities, prev_q=None, is_a_prev_query=False):
         # global DATA_MAP
 
         qb = prev_q
@@ -1511,7 +1511,7 @@ class LuisIntentProcessor:
             n -= 1
         return start
 
-    def prepare_query(self, q, prev_q, query_processor):
+    def prepare_query(self, q, prev_q, query_processor, is_a_prev_query=False):
         self.luis = q
 
         union = False
@@ -1601,19 +1601,32 @@ class LuisIntentProcessor:
         queries = []
 
         ix_to_ix = {}
+        ix_to_length = {}
 
         to_remove = []
 
         for ent_ix, entity in enumerate(entity_list):
             start_index = entity['startIndex']
-            if start_index in ix_to_ix:
-                if entity_list[ix_to_ix[start_index]]['type'].startswith('_') and not entity['type'].startswith('_'):
-                    to_remove.append(ent_ix)
-                elif entity['type'].startswith('_') and not entity_list[ix_to_ix[start_index]]['type'].startswith('_'):
-                    to_remove.append(ix_to_ix[start_index])
-                    ix_to_ix[start_index] = ent_ix
-            else:
+            found = False
+            for ix in ix_to_length:
+                if start_index >= ix and start_index < (ix + ix_to_length[ix]):
+                    found = True
+                    if entity_list[ix_to_ix[ix]]['type'].startswith('_') and not entity['type'].startswith('_'):
+                        to_remove.append(ent_ix)
+                    elif entity['type'].startswith('_') and not entity_list[ix_to_ix[ix]]['type'].startswith(
+                            '_'):
+                        to_remove.append(ix_to_ix[ix])
+                        ix_to_ix[start_index] = ent_ix
+                    elif ix_to_length[ix] < entity['length']:
+                        to_remove.append(ix_to_ix[ix])
+                        ix_to_ix[start_index] = ent_ix
+                    else:
+                        to_remove.append(ent_ix)
+                    break
+
+            if not found:
                 ix_to_ix[start_index] = ent_ix
+                ix_to_length[start_index] = entity['length']
 
         for ix in reversed(sorted(to_remove)):
             del entity_list[ix]
@@ -1702,7 +1715,7 @@ class LuisIntentProcessor:
 
             else:
                 entity_list, query = intent_decoder.decode(
-                    this_intent, entity_list, prev_q=prev_q)
+                    this_intent, entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
                 query = self.process_entity_list(entity_list, query)
                 # grouping_fields = [field[0].lower() for field in query.groups]
                 # condition_fields = [cond[1].lower() for cond in query.conditions]
@@ -1806,7 +1819,7 @@ class AnswerzProcessor():
         q = self.interpret(text)
         if prev_query:
             prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
-                                                                   self.queryProcessor)
+                                                                   self.queryProcessor, is_a_prev_query=True)
             prev_query = prev_query[0]
         pqs, union = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         if pqs:
