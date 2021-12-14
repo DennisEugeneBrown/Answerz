@@ -1,23 +1,14 @@
-import copy
-import io
-
 import us
-import os
-import re
 import csv
-import sys
+import copy
 import json
-import types
 import pyodbc
 import pprint
 import requests
 import itertools
-import traceback
-import numpy as np
 import pandas as pd
 from pprint import pprint
 from datetime import datetime
-from termcolor import colored
 from collections import defaultdict
 
 
@@ -1458,6 +1449,7 @@ class LuisIntentProcessor:
             if e['type'] == 'builtin.number':
                 number_found = ix
             if e['type'] == 'CallLength':
+                e['entity'] = e['entity'].lower().replace('minutes', '').strip()
                 callLengths_found.append(ix)
 
         if callLengths_found and number_found is not None:

@@ -44,11 +44,22 @@ class Answerz(Resource):
             totals_table = res['totals_table']
             if sql.lower() in sql_lower:
                 continue
+            chart_data = []
+            for group in qs[res_ix].groups:
+                if group[0] in qs[res_ix].groups_to_skip:
+                    continue
+                col_1 = group[0]
+                col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
+                chart_data.append((col_1, col_2))
+                for row in res['result']['Output']:
+                    chart_data.append((row[col_1], row[col_2]))
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
             out.append(result['Output'])
             print(result['Output'])
-            tables.append({'rows': res['main_table']['rows'], 'cols': res['main_table']['cols']})
+            chart_data = [chart_data[0]] + sorted(chart_data[1:], key=lambda x: x[1], reverse=True)
+            tables.append(
+                {'rows': res['main_table']['rows'], 'cols': res['main_table']['cols'], 'chart_data': chart_data})
         if len(tables) > 1:
             distinct_values = [
                 {'name': qbr.renderConditions(out_qs[ix]),

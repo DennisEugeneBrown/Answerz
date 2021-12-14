@@ -1,6 +1,6 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
   'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
   sans-serif;
   font-size: xxx-large;
@@ -32,9 +32,9 @@ code {
   :nth-child(2) {
     background-color: rgba(235, 235, 235, .7)
   }
+
   font-size: xxx-large;
 }
-
 
 
 div {
@@ -54,82 +54,86 @@ DataGrid {
   margin-bottom: 20vw;
 }
 
+.Chart {
+  width: 80%;
+}
+
 $background: #efefef;
 $lfs-blue: #006ac6;
 $lfs-yellow: #fab700;
 $lfs-grey: #75787b;
-.json-to-table table {
-  vertical-align: top;
-  font-size: calc(.1vw * var(--landscape-width)) !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
-  width: 100%;
-  margin: 20px;
-  margin-bottom: 2vw;
-
-  caption {
-    text-transform: uppercase;
-    font-weight: bold;
-    color: $lfs-yellow;
-    text-align: center;
-  }
-
-  thead {
-    border-top: 2px solid $lfs-yellow;
-    border-bottom: 2px solid $lfs-yellow;
-
-    th {
-      text-transform: uppercase;
-      text-align: center;
-      padding: 10px;
-      color: $lfs-blue;
-      border: 1px solid #000000;
-    }
-  }
-
-  tbody {
-    tr:first-child {
-      td {
-        font-weight: bold;
-        text-align: center;
-        padding: 10px;
-        color: $lfs-blue;
-        border: 1px solid #000000;
-      }
-    }
-
-    tr {
-      border-bottom: 1px solid #000000;
-      color: $lfs-grey;
-
-
-      td {
-        text-align: center;
-
-        padding: 10px;
-        border: 1px solid #000000;
-      }
-
-      th {
-        padding-left: 10px;
-        border: 1px solid #000000;
-      }
-    }
-  }
-
-  tfoot {
-    color: $lfs-yellow;
-    font-style: italic;
-    border-bottom: 2px solid $lfs-yellow;
-
-    tr {
-      td {
-        padding: 10px;
-        border: 1px solid #000000;
-      }
-    }
-  }
-}
-
+//.json-to-table table {
+//  vertical-align: top;
+//  font-size: calc(.1vw * var(--landscape-width)) !important;
+//  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif !important;
+//  width: 100%;
+//  margin: 20px;
+//  margin-bottom: 2vw;
+//
+//  caption {
+//    text-transform: uppercase;
+//    font-weight: bold;
+//    color: $lfs-yellow;
+//    text-align: center;
+//  }
+//
+//  thead {
+//    border-top: 2px solid $lfs-yellow;
+//    border-bottom: 2px solid $lfs-yellow;
+//
+//    th {
+//      text-transform: uppercase;
+//      text-align: center;
+//      padding: 10px;
+//      color: $lfs-blue;
+//      border: 1px solid #000000;
+//    }
+//  }
+//
+//  tbody {
+//    tr:first-child {
+//      td {
+//        font-weight: bold;
+//        text-align: center;
+//        padding: 10px;
+//        color: $lfs-blue;
+//        border: 1px solid #000000;
+//      }
+//    }
+//
+//    tr {
+//      border-bottom: 1px solid #000000;
+//      color: $lfs-grey;
+//
+//
+//      td {
+//        text-align: center;
+//
+//        padding: 10px;
+//        border: 1px solid #000000;
+//      }
+//
+//      th {
+//        padding-left: 10px;
+//        border: 1px solid #000000;
+//      }
+//    }
+//  }
+//
+//  tfoot {
+//    color: $lfs-yellow;
+//    font-style: italic;
+//    border-bottom: 2px solid $lfs-yellow;
+//
+//    tr {
+//      td {
+//        padding: 10px;
+//        border: 1px solid #000000;
+//      }
+//    }
+//  }
+//}
+//
 
 :root {
   --landscape-width: 25; // % OR vw for responsive window resizing!

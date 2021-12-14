@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import {JsonToTable} from "react-json-to-table";
 import ReactVoiceInput from 'react-voice-input';
 import Checkbox from '@mui/material/Checkbox';
+import {Chart} from "react-google-charts";
 import {DataGrid} from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import {CSVReader} from 'react-papaparse'
@@ -62,7 +63,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.19'
+    const versionNumber = '2.0.20'
 
     const [getInputState, setInputState] = useState('');
 
@@ -383,6 +384,7 @@ function App() {
                                 getScriptQueries.map((d) => <li>{d}</li>) : ''}
                             {getIsScript ? <Button variant="contained"
                                                    onClick={runScript}>Next</Button> : ''}</Container>
+
                         <div className='loading'>{submitting ?
                             <div>
                                 {/*<h3>LOADING</h3>*/}
@@ -403,6 +405,7 @@ function App() {
                             }}>{!submitting ?
                                 getTable.status === 200 && !getError ?
                                     <div>
+
                                         {getTable.data.distinct_values && getTable.data.distinct_values_table.rows.length ?
                                             <div style={{
                                                 height: '100%',
@@ -438,13 +441,43 @@ function App() {
                                                         'padding-bottom': '2%',
                                                         'padding-top': '2%'
                                                     }}>
-                                                        <span
-                                                            style={{
-                                                                'font-size': 'xx-large',
-                                                                'margin-bottom': '50px'
-                                                            }}>
-                                                        {getTable.data.conditions}
-                                                            </span>
+                                    <span
+                                        style={{
+                                            'font-size': 'xx-large',
+                                            'margin-bottom': '50px'
+                                        }}>
+                                {getTable.data.conditions}
+                                    </span>
+                                                        {/*<div className='Chart'>*/}
+                                                        {/*    <Chart*/}
+                                                        {/*        width={'100%'}*/}
+                                                        {/*        height={'800px'}*/}
+                                                        {/*        chartType="Bar"*/}
+                                                        {/*        loader={<div>Loading Chart</div>}*/}
+                                                        {/*        data={value.chart_data}*/}
+                                                        {/*        options={{*/}
+                                                        {/*            // Material design options*/}
+                                                        {/*            chart: {*/}
+                                                        {/*                title: getTable.data.conditions*/}
+                                                        {/*            },*/}
+                                                        {/*            fontSize: 100,*/}
+                                                        {/*            titleTextStyle: {*/}
+                                                        {/*                fontSize: 100,*/}
+                                                        {/*            },*/}
+                                                        {/*            annotations: {*/}
+                                                        {/*                textStyle: {*/}
+                                                        {/*                    fontSize: 100,*/}
+                                                        {/*                }*/}
+                                                        {/*            },*/}
+                                                        {/*            legend: {*/}
+                                                        {/*                textStyle: {*/}
+                                                        {/*                    fontSize: 100,*/}
+                                                        {/*                }*/}
+                                                        {/*            },*/}
+                                                        {/*        }}*/}
+                                                        {/*        rootProps={{'data-testid': '2'}}*/}
+                                                        {/*    />*/}
+                                                        {/*</div>*/}
                                                         <div>
                                                             <DataGrid
                                                                 theme={theme}
