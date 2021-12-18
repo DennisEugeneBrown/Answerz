@@ -63,7 +63,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.20'
+    const versionNumber = '2.0.21'
 
     const [getInputState, setInputState] = useState('');
 
@@ -363,27 +363,33 @@ function App() {
                                             </form>
                                         </Col>
                                     </Row>
+                                    <Row>
+                                        <Col>
+                                            <Container className='Script'><Checkbox label={'Use Script'}
+                                                                                    defaultUnchecked
+                                                                                    onChange={handleScriptBoxChange}/> Script
+                                                {getIsScript ?
+                                                    <CSVReader
+                                                        onDrop={handleOnDrop}
+                                                        onError={handleOnError}
+                                                        addRemoveButton
+                                                        removeButtonColor='#659cef'
+                                                        onRemoveFile={handleOnRemoveFile}
+                                                    >
+                                                        <span>Drop CSV file here or click to upload.</span>
+                                                    </CSVReader> : ''}
+                                                {getIsScript ?
+                                                    getScriptQueries.map((d) => <li>{d}</li>) : ''}
+                                                {getIsScript ? <Button variant="contained"
+                                                                       onClick={runScript}>Next</Button> : ''}
+                                            </Container>
+                                        </Col>
+                                    </Row>
                                 </div>
                             </Container>
                         </div>
                     </div>
                     <header className="App-header">
-                        <Container><Checkbox label={'Use Script'} defaultUnchecked
-                                             onChange={handleScriptBoxChange}/> Script
-                            {getIsScript ?
-                                <CSVReader
-                                    onDrop={handleOnDrop}
-                                    onError={handleOnError}
-                                    addRemoveButton
-                                    removeButtonColor='#659cef'
-                                    onRemoveFile={handleOnRemoveFile}
-                                >
-                                    <span>Drop CSV file here or click to upload.</span>
-                                </CSVReader> : ''}
-                            {getIsScript ?
-                                getScriptQueries.map((d) => <li>{d}</li>) : ''}
-                            {getIsScript ? <Button variant="contained"
-                                                   onClick={runScript}>Next</Button> : ''}</Container>
 
                         <div className='loading'>{submitting ?
                             <div>
@@ -441,52 +447,60 @@ function App() {
                                                         'padding-bottom': '2%',
                                                         'padding-top': '2%'
                                                     }}>
-                                    <span
-                                        style={{
-                                            'font-size': 'xx-large',
-                                            'margin-bottom': '50px'
-                                        }}>
-                                {getTable.data.conditions}
-                                    </span>
-                                                        {/*<div className='Chart'>*/}
-                                                        {/*    <Chart*/}
-                                                        {/*        width={'100%'}*/}
-                                                        {/*        height={'800px'}*/}
-                                                        {/*        chartType="Bar"*/}
-                                                        {/*        loader={<div>Loading Chart</div>}*/}
-                                                        {/*        data={value.chart_data}*/}
-                                                        {/*        options={{*/}
-                                                        {/*            // Material design options*/}
-                                                        {/*            chart: {*/}
-                                                        {/*                title: getTable.data.conditions*/}
-                                                        {/*            },*/}
-                                                        {/*            fontSize: 100,*/}
-                                                        {/*            titleTextStyle: {*/}
-                                                        {/*                fontSize: 100,*/}
-                                                        {/*            },*/}
-                                                        {/*            annotations: {*/}
-                                                        {/*                textStyle: {*/}
-                                                        {/*                    fontSize: 100,*/}
-                                                        {/*                }*/}
-                                                        {/*            },*/}
-                                                        {/*            legend: {*/}
-                                                        {/*                textStyle: {*/}
-                                                        {/*                    fontSize: 100,*/}
-                                                        {/*                }*/}
-                                                        {/*            },*/}
-                                                        {/*        }}*/}
-                                                        {/*        rootProps={{'data-testid': '2'}}*/}
-                                                        {/*    />*/}
-                                                        {/*</div>*/}
-                                                        <div>
-                                                            <DataGrid
-                                                                theme={theme}
-                                                                rows={value.rows}
-                                                                columns={value.cols}
-                                                                pageSize={100}
-                                                                checkboxSelection
-                                                            />
-                                                        </div>
+                                                        {getTable.data.follow_up ?
+                                                            <div>
+                                                                <h4>{getPrevQuery}</h4>
+                                                                <h4>{getTable.data.query}</h4>
+                                                            </div>
+                                                            :
+                                                            <h4>{getTable.data.query}</h4>
+                                                        }
+                                                        <h2
+                                                            style={{
+                                                                'margin-bottom': '150px'
+                                                            }}> {value.total}
+                                                        </h2>
+                                                        {value.total > 0 ?
+                                                            <div>
+                                                                <div className='Chart'>
+                                                                    <Chart
+                                                                        width={'100%'}
+                                                                        height={'800px'}
+                                                                        chartType="Line"
+                                                                        loader={<div>Loading Chart</div>}
+                                                                        data={value.chart_data}
+                                                                        options={{
+                                                                            fontSize: 8,
+                                                                            titleTextStyle: {
+                                                                                fontSize: 8,
+                                                                            },
+                                                                            annotations: {
+                                                                                textStyle: {
+                                                                                    fontSize: 8,
+                                                                                }
+                                                                            },
+                                                                            legend: {
+                                                                                textStyle: {
+                                                                                    fontSize: 8,
+                                                                                }
+                                                                            },
+                                                                        }}
+                                                                        rootProps={{'data-testid': '2'}}
+                                                                    />
+                                                                </div>
+
+                                                                <div>
+                                                                    <DataGrid
+                                                                        theme={theme}
+                                                                        rows={value.rows}
+                                                                        columns={value.cols}
+                                                                        pageSize={100}
+                                                                        checkboxSelection
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            : ''
+                                                        }
                                                         {/*<Button*/}
                                                         {/*    onClick={handleOpen}>Table Properties*/}
                                                         {/*</Button>*/}

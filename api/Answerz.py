@@ -24,7 +24,7 @@ class Answerz(Resource):
         text = args['text']
         prev_query = args['prev_query']
         print(text)
-        results, qs = ap.run_query(text, prev_query=prev_query, return_qs=True)
+        results, qs, supp_qs = ap.run_query(text, prev_query=prev_query, return_qs=True)
         sql_lower = []
         out = []
         distinct_values = distinct_values_table = None
@@ -46,20 +46,31 @@ class Answerz(Resource):
                 continue
             chart_data = []
             for group in qs[res_ix].groups:
-                if group[0] in qs[res_ix].groups_to_skip:
+                if group[1] in qs[res_ix].groups_to_skip:
                     continue
-                col_1 = group[0]
+                col_1 = group[1]
                 col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
-                chart_data.append((col_1, col_2))
-                for row in res['result']['Output']:
-                    chart_data.append((row[col_1], row[col_2]))
+                extra_cols = []
+                extra_rows = []
+                for supp_ix, supp_q in enumerate(supp_qs):
+                    supp_col = qbr.renderConditions(supp_q) or 'Calls'
+                    extra_cols.append(supp_col)
+                    rows = []
+                    for row in res['supp_results'][supp_ix]['Output']:
+                        rows.append(row[supp_col])
+                    extra_rows.append(rows)
+
+                chart_data.append([col_1, col_2] + extra_cols)
+                for ix, row in enumerate(res['result']['Output']):
+                    chart_data.append([str(row[col_1]), row[col_2]] + [extra_row[ix] for extra_row in extra_rows])
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
             out.append(result['Output'])
             print(result['Output'])
-            chart_data = [chart_data[0]] + sorted(chart_data[1:], key=lambda x: x[1], reverse=True)
+            # chart_data = chart_data[0:1] + sorted(chart_data[1:], key=lambda x: x[1], reverse=True)
             tables.append(
-                {'rows': res['main_table']['rows'], 'cols': res['main_table']['cols'], 'chart_data': chart_data})
+                {'rows': res['main_table']['rows'], 'cols': res['main_table']['cols'], 'chart_data': chart_data,
+                 'total': res['total']})
         if len(tables) > 1:
             distinct_values = [
                 {'name': qbr.renderConditions(out_qs[ix]),
@@ -81,6 +92,7 @@ class Answerz(Resource):
             distinct_values_table = distinct_values_table
         sql_lower = list(set(sql_lower))
         final_ret = {"status": "Success",
+                     "query": text.title(),
                      "message": out,
                      "tables": tables,
                      "queries": sql_lower,

@@ -58,6 +58,13 @@
         },
         {
           "class": "field",
+          "type": "number",
+          "name": "Year",
+          "field": "YEAR(CallDate)",
+          "joins": null
+        },
+        {
+          "class": "field",
           "type": "string",
           "name": "builtin.personName",
           "field": "PhoneWorker",
@@ -269,6 +276,13 @@
           "type": "datetime",
           "name": "Date",
           "field": "CallDate",
+          "joins": null
+        },
+        {
+          "class": "field",
+          "type": "number",
+          "name": "Year",
+          "field": "YEAR(CallDate)",
           "joins": null
         },
         {

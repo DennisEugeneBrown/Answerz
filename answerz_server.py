@@ -590,10 +590,13 @@ class AggregationByDescriptionIntentDecoder:
             entities[number_type_entities[0][1]]['type'] = numbers[0][0]
         else:
             numbers_covered = []
+            # TODO: Improve numbers by looking at comparators rather than just distance
             for number, num_entity_ix in numbers:
                 for ix, entity in enumerate(entities):
-                    if entity['type'] == 'builtin.number' and _fieldName_entities[num_entity_ix]['startIndex'] < entity[
-                        'startIndex']:
+                    _fieldName_entity = _fieldName_entities[num_entity_ix]
+                    if entity['type'] == 'builtin.number' and (
+                            abs((_fieldName_entity['startIndex'] + _fieldName_entity['length']) - entity[
+                                'startIndex']) <= 3):
                         entities[ix]['type'] = number
                         numbers_covered.append(ix)
             for ix, entity in enumerate(entities):
@@ -645,6 +648,7 @@ class AggregationByDescriptionIntentDecoder:
             qb.string_operators.append(string_operators_mapping[_stringOperator])
 
         mapped_groupings = []
+        default_grouping = False
         if _groupAction and not is_a_prev_query:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
                 if _fieldNames:
@@ -664,6 +668,12 @@ class AggregationByDescriptionIntentDecoder:
                     pass
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
+        elif not _groupAction and not is_a_prev_query:
+            _, mapped_grouping = data_map_repo.findGrouping(
+                _element, 'Year')
+            mapped_groupings.append(mapped_grouping)
+            _groupAction = {'entity': 'group by'}
+            default_grouping = True
 
         for table in mapped_aggregation["tables"]:
             if (type(table) == str):
@@ -701,7 +711,7 @@ class AggregationByDescriptionIntentDecoder:
 
         if _groupAction:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
-                    _fieldNames or _logicalLabel):
+                    _fieldNames or _logicalLabel or default_grouping):
                 for mapped_grouping in mapped_groupings:
                     if mapped_grouping['joins']:
                         qb.joins.extend(tuple(mapped_grouping['joins']))
@@ -1591,6 +1601,7 @@ class LuisIntentProcessor:
                     ('builtin.geographyV2.state', self.find_nth(q['query'].lower(), 'state', ix + 1), len('state')))
 
         queries = []
+        supplementary_queries = []
 
         ix_to_ix = {}
         ix_to_length = {}
@@ -1603,16 +1614,18 @@ class LuisIntentProcessor:
             for ix in ix_to_length:
                 if start_index >= ix and start_index < (ix + ix_to_length[ix]):
                     found = True
-                    if entity_list[ix_to_ix[ix]]['type'].startswith('_') and not entity['type'].startswith('_'):
+                    if entity_list[ix_to_ix[ix]]['type'].startswith('_') and not entity['type'].startswith('_') \
+                            or 'builtin' not in entity_list[ix_to_ix[ix]]['type'] and 'builtin' in entity['type']:
                         to_remove.append(ent_ix)
-                    elif entity['type'].startswith('_') and not entity_list[ix_to_ix[ix]]['type'].startswith(
-                            '_'):
+                    elif entity['type'].startswith('_') and not entity_list[ix_to_ix[ix]]['type'].startswith('_') \
+                            or 'builtin' not in entity['type'] and 'builtin' in entity_list[ix_to_ix[ix]]['type']:
                         to_remove.append(ix_to_ix[ix])
                         ix_to_ix[start_index] = ent_ix
-                    elif ix_to_length[ix] < entity['length']:
+                    elif not (entity['type'].startswith('_') or entity_list[ix_to_ix[ix]]['type'].startswith('_')) and \
+                            ix_to_length[ix] < entity['length']:
                         to_remove.append(ix_to_ix[ix])
                         ix_to_ix[start_index] = ent_ix
-                    else:
+                    elif not (entity['type'].startswith('_') or entity_list[ix_to_ix[ix]]['type'].startswith('_')):
                         to_remove.append(ent_ix)
                     break
 
@@ -1622,6 +1635,15 @@ class LuisIntentProcessor:
 
         for ix in reversed(sorted(to_remove)):
             del entity_list[ix]
+
+        geo_transformations = {
+            'County': 'county',
+            'builtin.geographyV2.state': 'state',
+            'State': 'state',
+            'builtin.geographyV2.city': 'city',
+            'City': 'city',
+        }
+        geo_by_type = defaultdict(list)
 
         if len(geography_entities_found) > 1 and this_intent != 'cross-by-field-name' and 'compare' not in q[
             'query'].lower():
@@ -1645,7 +1667,11 @@ class LuisIntentProcessor:
                         else:
                             skip = True
                 if not skip:
-                    geo_ents.append(entity)
+                    if entity['text'] in geo_by_type[geo_transformations[entity['type']]]:
+                        continue
+                    else:
+                        geo_ents.append(entity)
+                        geo_by_type[geo_transformations[entity['type']]].append(entity['text'])
 
             entity_list_ = [
                 entity_ for entity_ in entity_list if
@@ -1665,6 +1691,19 @@ class LuisIntentProcessor:
             for ent in geo_ents:
                 ents[ent['text']].append(ent)
             lists = [entity_list_ + list(perm) for perm in list(itertools.product(*[e for e in ents.values()]))]
+
+            if len(geo_ents) == 1:
+                geo_type = geo_ents[0]['type']
+                if geo_transformations[geo_type] == 'city':
+                    supp_entity_list = [] + entity_list
+                    for ix, entity in enumerate(supp_entity_list):
+                        if entity['text'] == geo_ents[0]['text']:
+                            supp_entity_list[ix]['text'] = 'Santa Ana'
+                            supp_entity_list[ix]['entity'] = 'Santa Ana'
+                    supp_entity_list, supp_query = intent_decoder.decode(
+                        this_intent, supp_entity_list, prev_q=prev_q)
+                    supp_query = self.process_entity_list(supp_entity_list, supp_query)
+                    supplementary_queries.append(supp_query)
 
             for lst in lists:
                 entity_list, query = intent_decoder.decode(
@@ -1717,7 +1756,7 @@ class LuisIntentProcessor:
                 #         query.groups.append((entity['entity'], entity['entity']))
                 queries.append(query)
 
-        return queries, union
+        return queries, union, supplementary_queries
 
 
 class QueryProcessor:
@@ -1807,16 +1846,45 @@ class AnswerzProcessor():
             conditions.append(cond_value + ' ' + field_name)
         return qb.queryIntent[-1] + ' ' + qb.queryIntent[0] + ' From ' + ' and '.join(conditions)
 
+    def generate_rows_and_cols(self, pq, result):
+        if len(result['Output']) == 1:
+            row = result['Output'][0]
+            cols = [{'field': 'col', 'headerName': '', 'flex': 1},
+                    {'field': 'val', 'headerName': '', 'flex': 1}]
+            rows = [{'id': ix + 1, 'col': key.replace('_', ' ') if '.' not in key else pq.queryIntent[0],
+                     'val': val} for
+                    ix, (key, val) in enumerate(row.items())]
+        else:
+            cols = [
+                {'field': key,
+                 'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
+                 'flex': 1}
+                for key
+                in
+                list(result['Output'][0].keys())] if \
+                result['Output'] else []
+            rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
+        return rows, cols
+
     def run_query(self, text, prev_query=None, return_qs=False):
         q = self.interpret(text)
         if prev_query:
-            prev_query, union = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
-                                                                   self.queryProcessor, is_a_prev_query=True)
+            prev_query, union, supp_queries = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
+                                                                                 self.queryProcessor,
+                                                                                 is_a_prev_query=True)
             prev_query = prev_query[0]
-        pqs, union = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
+        pqs, union, supp_queries = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         if pqs:
             self.update_prev_query(pqs[0])  # TODO: fix bug here
         results = []
+        qbr = QueryBlockRenderer()
+        supp_tables = []
+        supp_results = []
+        for supp_query in supp_queries:
+            supp_result, supp_sql = self.queryProcessor.generate_and_run_query(supp_query)
+            supp_rows, supp_cols = self.generate_rows_and_cols(supp_query, supp_result)
+            supp_tables.append({'rows': supp_rows, 'cols': supp_cols})
+            supp_results.append(supp_result)
         if union and len(pqs[0].groups) < 2:
             sqls = []
             for pq in pqs:
@@ -1834,23 +1902,9 @@ class AnswerzProcessor():
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
 
-                if len(result['Output']) == 1:
-                    row = result['Output'][0]
-                    cols = [{'field': 'col', 'headerName': '', 'flex': 1},
-                            {'field': 'val', 'headerName': '', 'flex': 1}]
-                    rows = [{'id': ix + 1, 'col': key.replace('_', ' ') if '.' not in key else pq.queryIntent[0],
-                             'val': val} for
-                            ix, (key, val) in enumerate(row.items())]
-                else:
-                    cols = [
-                        {'field': key,
-                         'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
-                         'flex': 1}
-                        for key
-                        in
-                        list(result['Output'][0].keys())] if \
-                        result['Output'] else []
-                    rows = [{'id': ix + 1, **row} for ix, row in enumerate(result['Output'])]
+                col = qbr.renderConditions(pq) or 'Calls'
+                total = sum([row[col] for row in result['Output']])
+                rows, cols = self.generate_rows_and_cols(pq, result)
 
                 totals_table = self.queryProcessor.generate_and_run_query(pq.totals) if pq.totals else None
 
@@ -1887,10 +1941,13 @@ class AnswerzProcessor():
                                                  'rows': totals_table_rows},
                                 'distinct_values': distinct_values_table,
                                 'distinct_values_table': {'cols': distinct_values_table_cols,
-                                                          'rows': distinct_values_table_rows}
+                                                          'rows': distinct_values_table_rows},
+                                'total': total,
+                                'supp_tables': supp_tables,
+                                'supp_results': supp_results
                                 })
         if return_qs:
-            return results, pqs
+            return results, pqs, supp_queries
         return results
 
     def run_sql_query(self, sql, headers):
