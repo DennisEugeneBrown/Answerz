@@ -1692,24 +1692,20 @@ class LuisIntentProcessor:
                 ents[ent['text']].append(ent)
             lists = [entity_list_ + list(perm) for perm in list(itertools.product(*[e for e in ents.values()]))]
 
-            if len(geo_ents) == 1:
-                geo_type = geo_ents[0]['type']
-                if geo_transformations[geo_type] == 'city':
-                    supp_entity_list = [] + entity_list
-                    for ix, entity in enumerate(supp_entity_list):
-                        if entity['text'] == geo_ents[0]['text']:
-                            supp_entity_list[ix]['text'] = 'Santa Ana'
-                            supp_entity_list[ix]['entity'] = 'Santa Ana'
-                    supp_entity_list, supp_query = intent_decoder.decode(
-                        this_intent, supp_entity_list, prev_q=prev_q)
-                    supp_query = self.process_entity_list(supp_entity_list, supp_query)
-                    supplementary_queries.append(supp_query)
-
             for lst in lists:
                 entity_list, query = intent_decoder.decode(
                     this_intent, entity_list, prev_q=prev_q)
                 query = self.process_entity_list(lst, query)
                 queries.append(query)
+                
+            if len(geo_ents) > 1:
+                for geo_ent in geo_ents:
+                    supp_entity_list = entity_list_ + [geo_ent]
+                    supp_entity_list, supp_query = intent_decoder.decode(
+                        this_intent, supp_entity_list, prev_q=prev_q)
+                    supp_query = self.process_entity_list(supp_entity_list, supp_query)
+                    supplementary_queries.append(supp_query)
+
 
         else:
 

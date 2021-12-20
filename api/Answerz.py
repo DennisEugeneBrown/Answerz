@@ -1,4 +1,5 @@
 import app
+from collections import defaultdict
 from answerz_server import AnswerzProcessor, QueryBlockRenderer
 from flask_restful import Resource, reqparse
 
@@ -45,6 +46,7 @@ class Answerz(Resource):
             if sql.lower() in sql_lower:
                 continue
             chart_data = []
+            extra_rows_by_group = defaultdict(lambda: defaultdict(lambda: 0))
             for group in qs[res_ix].groups:
                 if group[1] in qs[res_ix].groups_to_skip:
                     continue
@@ -57,12 +59,18 @@ class Answerz(Resource):
                     extra_cols.append(supp_col)
                     rows = []
                     for row in res['supp_results'][supp_ix]['Output']:
+                        extra_rows_by_group[row[col_1]][supp_col] = row[supp_col]
                         rows.append(row[supp_col])
                     extra_rows.append(rows)
 
                 chart_data.append([col_1, col_2] + extra_cols)
                 for ix, row in enumerate(res['result']['Output']):
-                    chart_data.append([str(row[col_1]), row[col_2]] + [extra_row[ix] for extra_row in extra_rows])
+                    if row[col_1] in extra_rows_by_group: # Fill up chart data for the corresponding group values
+                        chart_data.append([str(row[col_1]), row[col_2]] + [extra_rows_by_group[row[col_1]][col] for col in extra_cols])
+                    else: # Fill up chart data for any missing years (groups)
+                        chart_data.append([str(row[col_1]), row[col_2]] + ['' for col in extra_cols])
+
+
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
             out.append(result['Output'])

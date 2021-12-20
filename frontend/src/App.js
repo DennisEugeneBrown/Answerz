@@ -13,6 +13,8 @@ import Checkbox from '@mui/material/Checkbox';
 import {Chart} from "react-google-charts";
 import {DataGrid} from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Input from '@mui/material/Input';
 import {CSVReader} from 'react-papaparse'
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
@@ -48,6 +50,7 @@ function App() {
     const [getMessage, setGetMessage] = useState({})
     const [getTable, setGetTable] = useState({})
     const [getIsScript, setIsScript] = useState(false)
+    const [getChartType, setChartType] = useState('Line')
     const [formData, setFormData] = useReducer(formReducer, {});
     const [submitting, setSubmitting] = useState(false);
     const [getError, setError] = useState(false);
@@ -63,7 +66,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.21'
+    const versionNumber = '2.0.22'
 
     const [getInputState, setInputState] = useState('');
 
@@ -93,6 +96,13 @@ function App() {
     const handleSubmit = event => {
         event.preventDefault();
         submit(getInputState);
+    }
+
+    const handleChartSwitch = event => {
+        if (getChartType === 'Line')
+            setChartType('Bar')
+        else
+            setChartType('Line')
     }
 
     const submit = (inputValue) => {
@@ -125,11 +135,12 @@ function App() {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 400,
+        width: '20%',
         bgcolor: 'background.paper',
         border: '2px solid #000',
         boxShadow: 24,
         p: 4,
+        fontSize: 96,
     };
 
     function update_table() {
@@ -465,11 +476,13 @@ function App() {
                                                                 <div className='Chart'>
                                                                     <Chart
                                                                         width={'100%'}
-                                                                        height={'800px'}
-                                                                        chartType="Line"
+                                                                        height={'600px'}
+                                                                        chartType={getChartType}
                                                                         loader={<div>Loading Chart</div>}
                                                                         data={value.chart_data}
+                                                                        textStyle={{fontSize: 14}}
                                                                         options={{
+                                                                            chartArea: {width: '50%'},
                                                                             fontSize: 8,
                                                                             titleTextStyle: {
                                                                                 fontSize: 8,
@@ -480,15 +493,20 @@ function App() {
                                                                                 }
                                                                             },
                                                                             legend: {
-                                                                                textStyle: {
-                                                                                    fontSize: 8,
-                                                                                }
+                                                                                position: "bottom",
+                                                                                alignment: "start",
+                                                                                maxLines: 2,
+                                                                                textStyle: {fontSize: 14}
                                                                             },
                                                                         }}
-                                                                        rootProps={{'data-testid': '2'}}
                                                                     />
+                                                                    {/*<Button*/}
+                                                                    {/*    onClick={handleOpen}>Chart Properties*/}
+                                                                    {/*</Button>*/}
+                                                                    <Button
+                                                                        onClick={handleChartSwitch}>Switch chart
+                                                                    </Button>
                                                                 </div>
-
                                                                 <div>
                                                                     <DataGrid
                                                                         theme={theme}
@@ -565,49 +583,85 @@ function App() {
                                             aria-describedby="modal-modal-description"
                                         >
                                             <Box sx={style}>
-                                                <Typography id="modal-modal-title" variant="h6" component="h2">
-                                                    Table Properties
+                                                <Typography id="modal-modal-title" variant="h6" component="h2"
+                                                            textAlign={'center'}>
+                                                    Chart Properties
                                                 </Typography>
-                                                <h4>Table Name: {formData.name}</h4>
-                                                <h4>Rows: {formData.name}</h4>
-                                                <h4>Columns: {formData.name}</h4>
                                                 <div>
-                                                    <Checkbox label={label} defaultUnchecked
-                                                              onChange={handleBoxChange}/> Show Column Totals at
-                                                    Bottom
+                                                    <div>
+                                                        <TextField
+                                                            label="Chart Name"
+                                                            defaultValue=""
+                                                            variant="standard"
+                                                            contentEditable="false"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <TextField
+                                                            label="Command"
+                                                            defaultValue={getTable.data.query}
+                                                            variant="standard"
+                                                            inputProps={
+                                                                {readOnly: true,}
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <TextField
+                                                            label="Horizontal Axis Label"
+                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
+                                                            variant="standard"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <TextField
+                                                            label="Vertical Axis Label"
+                                                            defaultValue={getTable.data.tables[0].chart_data[0][1]}
+                                                            variant="standard"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <FormControlLabel control={<Checkbox defaultChecked/>}
+                                                                          label="Label"/>
+                                                        {/*<Checkbox*/}
+                                                        {/*    label={label}*/}
+                                                        {/*    defaultUnchecked*/}
+                                                        {/*    onChange={handleBoxChange}/>*/}
+                                                        {/*<span style={{'font-size': 'x-large'}}>Show Column Totals Bottom</span>*/}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Column
-                                                    Totals at
-                                                    Top
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals
-                                                    on
-                                                    Left
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Row Totals
-                                                    at
-                                                    Right
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
-                                                    Row
-                                                    Totals
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
-                                                    Column
-                                                    Totals
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Percent of
-                                                    All
-                                                </div>
-                                                <div>
-                                                    <Checkbox label={label} defaultUnchecked/> Show Counts
-                                                </div>
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Column*/}
+                                                {/*    Totals at*/}
+                                                {/*    Top*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Row Totals*/}
+                                                {/*    on*/}
+                                                {/*    Left*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Row Totals*/}
+                                                {/*    at*/}
+                                                {/*    Right*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
+                                                {/*    Row*/}
+                                                {/*    Totals*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
+                                                {/*    Column*/}
+                                                {/*    Totals*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
+                                                {/*    All*/}
+                                                {/*</div>*/}
+                                                {/*<div>*/}
+                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Counts*/}
+                                                {/*</div>*/}
                                             </Box>
                                         </Modal>
                                     </div>
