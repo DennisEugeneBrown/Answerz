@@ -128,8 +128,9 @@ class QueryBlock:
         self.unpivot_selects = []
         self.unpivot_cols = []
         self.groups_to_skip = []
-        self.cond_sep = 'AND'
+        self.cond_sep = {-1: 'AND'}  # Default
         self.logical_label = False
+        self.condition_locs = {}
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -181,6 +182,7 @@ class QueryBlock:
         self.is_compare = (self.is_compare or qb_other.is_compare)
         self.aggregation = qb_other.aggregation if qb_other.aggregation else self.aggregation
         self.logical_label = qb_other.logical_label
+        self.condition_locs = {**self.condition_locs, **qb_other.condition_locs}
         return True
 
 
@@ -372,9 +374,16 @@ class QueryBlockRenderer:
             return op
 
         # Handle the group selects
-        for term in qb.conditions:
+        for ix, term in enumerate(qb.conditions):
             sql = sql + sep + encodeCondition(term)
-            sep = ' ' + qb.cond_sep.upper() + ' '
+            if ix < len(qb.conditions) - 1:
+                sep = ' ' + qb.cond_sep[-1].upper() + ' '
+                for sep_ix, cond_sep in qb.cond_sep.items():
+                    if qb.condition_locs[qb.conditions[ix + 1][-1]] > sep_ix > qb.condition_locs[term[-1]]:
+                        sep = ' ' + cond_sep.upper() + ' '
+                        break
+            else:
+                sep = ' ' + qb.cond_sep[-1].upper() + ' '
 
         return sql
 
@@ -617,7 +626,7 @@ class AggregationByDescriptionIntentDecoder:
         qb = QueryBlock((_element, _aggregation))
 
         if _condition_Separator:
-            qb.cond_sep = _condition_Separator['entity']
+            qb.cond_sep[_condition_Separator['startIndex']] = _condition_Separator['entity']
 
         comparators_mapping = {
             '<': 'lt',
@@ -1140,6 +1149,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
                             qb.conditions.append(
                                 ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
 
+                    qb.condition_locs[qb.conditions[-1][-1]] = entity['startIndex']
                     if ("joins" in lu and lu["joins"]):
                         for join in lu["joins"]:
                             qb.addTable(join[0], join[1])
@@ -1300,31 +1310,6 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
             return qb
 
-            #############################
-            # if not lu:
-            #     entity_type = "date"
-            #     lu = self.lookupTablesAndFieldByType(
-            #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
-            #
-            # if (lu):
-            #     # TODO for compatability other than MSSQL need to lookup seperator
-            #     field_name = lu["field"]
-            #
-            #     # Field name hard coded for now. This is wrong.
-            #     qb = QueryBlock()
-            #     qb.addTable(query_block.table)
-            #
-            #     qb.conditions.append(
-            #         ["gte", field_name, entity_value["start"]])
-            #     if "end" in entity_value:
-            #         qb.conditions.append(
-            #             ["lt", field_name, entity_value["end"]])
-            #     else:
-            #         qb.conditions.append(
-            #             ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
-            #
-            #     return qb
-
         return None
 
 
@@ -1371,26 +1356,6 @@ class DateEntityDecoder(EntityDecoderBase):
                         qb.addTable(join[0], join[1])
 
                 return qb
-
-                # if not lu:
-                #     entity_type = "date"
-                #     lu = self.lookupTablesAndFieldByType(
-                #         query_block.queryIntent[0], query_block.queryIntent[1], entity_type, self.data_map)
-
-                # if (lu):
-                #     # TODO for compatability other than MSSQL need to lookup seperator
-                #     field_name = lu["field"]
-                #
-                #     # Field name hard coded for now. This is wrong.
-                #     qb = QueryBlock()
-                #     qb.addTable(query_block.table)
-                #
-                #     qb.conditions.append(
-                #         ["gte", field_name, entity_value["value"]])
-                #     qb.conditions.append(
-                #         ["lte", field_name, entity_value["value"] + ' 23:59:59'])
-                #
-                #     return qb
 
         return None
 
@@ -1697,10 +1662,10 @@ class LuisIntentProcessor:
                     this_intent, entity_list, prev_q=prev_q)
                 query = self.process_entity_list(lst, query)
                 queries.append(query)
-                
+
             if len(geo_ents) > 1:
                 for geo_ent in geo_ents:
-                    supp_entity_list = entity_list_ + [geo_ent]
+                    supp_entity_list = [ent for ent in entity_list_ if ent['type'] != '_ConditionSeparator'] + [geo_ent]
                     supp_entity_list, supp_query = intent_decoder.decode(
                         this_intent, supp_entity_list, prev_q=prev_q)
                     supp_query = self.process_entity_list(supp_entity_list, supp_query)

@@ -19,7 +19,20 @@ import {CSVReader} from 'react-papaparse'
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import axios from 'axios'
-import {
+import {input {
+  border-style: none;
+  margin-left: 5vw;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: calc(5% * var(--landscape-width));
+  vertical-align: middle;
+  padding-top: 4px;
+  padding-left: 0.7vw;
+  width: 80vw;
+}
     createTheme,
     useTheme,
 } from "@material-ui/core/styles";
@@ -50,7 +63,7 @@ function App() {
     const [getMessage, setGetMessage] = useState({})
     const [getTable, setGetTable] = useState({})
     const [getIsScript, setIsScript] = useState(false)
-    const [getChartType, setChartType] = useState('LineChart')
+    const [getChartType, setChartType] = useState('Line')
     const [formData, setFormData] = useReducer(formReducer, {});
     const [submitting, setSubmitting] = useState(false);
     const [getError, setError] = useState(false);
@@ -66,7 +79,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.23'
+    const versionNumber = '2.0.22'
 
     const [getInputState, setInputState] = useState('');
 
@@ -99,10 +112,10 @@ function App() {
     }
 
     const handleChartSwitch = event => {
-        if (getChartType === 'LineChart')
-            setChartType('ColumnChart')
+        if (getChartType === 'Line')
+            setChartType('Bar')
         else
-            setChartType('LineChart')
+            setChartType('Line')
     }
 
     const submit = (inputValue) => {
@@ -475,36 +488,41 @@ function App() {
                                                                 <div className='Chart'>
                                                                     <Chart
                                                                         width={'100%'}
-                                                                        height={'800px'}
+                                                                        height={'600px'}
                                                                         chartType={getChartType}
                                                                         loader={<div>Loading Chart</div>}
                                                                         data={value.chart_data}
                                                                         options={{
-                                                                            fontSize: 36,
                                                                             titleTextStyle: {
-                                                                                fontSize: 32,
+                                                                                fontSize: 14,
                                                                             },
                                                                             annotations: {
                                                                                 textStyle: {
-                                                                                    fontSize: 32,
+                                                                                    fontSize: 14,
                                                                                 }
                                                                             },
                                                                             legend: {
-                                                                                position: "right",
+                                                                                position: "bottom",
                                                                                 alignment: "start",
-                                                                                maxLines: 10,
-                                                                                textStyle: {fontSize: 24}
+                                                                                maxLines: 2,
+                                                                                textStyle: {fontSize: 4}
                                                                             },
                                                                             hAxis: {
+                                                                                title: 'Request Status',
                                                                                 titleTextStyle: {
-                                                                                    fontSize: 32,
+                                                                                    color: "#000",
+                                                                                    fontName: "sans-serif",
+                                                                                    fontSize: 11,
                                                                                     bold: true,
                                                                                     italic: false
                                                                                 }
                                                                             },
                                                                             vAxis: {
+                                                                                title: 'Amount requested ($)',
                                                                                 titleTextStyle: {
-                                                                                    fontSize: 32,
+                                                                                    color: "#000",
+                                                                                    fontName: "sans-serif",
+                                                                                    fontSize: 11,
                                                                                     bold: true,
                                                                                     italic: false
                                                                                 }
