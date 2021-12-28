@@ -51,7 +51,12 @@ class Answerz(Resource):
                 if group[1] in qs[res_ix].groups_to_skip:
                     continue
                 col_1 = group[1]
-                col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
+                # col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
+                conds = qbr.renderConditions(qs[res_ix])
+                if conds and len(conds) <= 128:
+                    col_2 = conds
+                else:
+                    col_2 = 'Calls'
                 extra_cols = []
                 extra_rows = []
                 for supp_ix, supp_q in enumerate(supp_qs):
@@ -65,11 +70,12 @@ class Answerz(Resource):
 
                 chart_data.append([col_1, col_2] + extra_cols)
                 for ix, row in enumerate(res['result']['Output']):
-                    if row[col_1] in extra_rows_by_group: # Fill up chart data for the corresponding group values
-                        chart_data.append([str(row[col_1]), row[col_2]] + [extra_rows_by_group[row[col_1]][col] for col in extra_cols])
-                    else: # Fill up chart data for any missing years (groups)
+                    if row[col_1] in extra_rows_by_group:  # Fill up chart data for the corresponding group values
+                        chart_data.append(
+                            [str(row[col_1]), row[col_2]] + [extra_rows_by_group[row[col_1]][col] for col in
+                                                             extra_cols])
+                    else:  # Fill up chart data for any missing years (groups)
                         chart_data.append([str(row[col_1]), row[col_2]] + ['' for col in extra_cols])
-
 
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())

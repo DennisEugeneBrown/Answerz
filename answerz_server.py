@@ -131,6 +131,7 @@ class QueryBlock:
         self.cond_sep = {-1: 'AND'}  # Default
         self.logical_label = False
         self.condition_locs = {}
+        self.conditions_by_type = {}
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -161,6 +162,14 @@ class QueryBlock:
 
         return allSelects
 
+    def merge_conditions_by_type(self, other_conditions):
+        conditions_by_type = defaultdict(list)
+        for cond_type, vals in self.conditions_by_type.items():
+            conditions_by_type[cond_type].extend(vals)
+        for cond_type, vals in other_conditions.items():
+            conditions_by_type[cond_type].extend(vals)
+        return conditions_by_type
+
     def merge(self, qb_other):
         if (not qb_other):
             return False
@@ -183,6 +192,7 @@ class QueryBlock:
         self.aggregation = qb_other.aggregation if qb_other.aggregation else self.aggregation
         self.logical_label = qb_other.logical_label
         self.condition_locs = {**self.condition_locs, **qb_other.condition_locs}
+        self.conditions_by_type = self.merge_conditions_by_type(qb_other.conditions_by_type)
         return True
 
 
@@ -196,7 +206,7 @@ class QueryBlockRenderer:
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
         cond_sql = self.renderConditions(qb)
-        if cond_sql:
+        if cond_sql and len(cond_sql) <= 128:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
                     for sort_ix, sort in enumerate(qb.sorts):
@@ -374,17 +384,29 @@ class QueryBlockRenderer:
             return op
 
         # Handle the group selects
-        for ix, term in enumerate(qb.conditions):
-            sql = sql + sep + encodeCondition(term)
-            if ix < len(qb.conditions) - 1:
-                sep = ' ' + qb.cond_sep[-1].upper() + ' '
-                for sep_ix, cond_sep in qb.cond_sep.items():
-                    if qb.condition_locs[qb.conditions[ix + 1][-1]] > sep_ix > qb.condition_locs[term[-1]]:
-                        sep = ' ' + cond_sep.upper() + ' '
-                        break
-            else:
-                sep = ' ' + qb.cond_sep[-1].upper() + ' '
+        # for ix, term in enumerate(qb.conditions):
+        #     sql = sql + sep + encodeCondition(term)
+        #     if ix < len(qb.conditions) - 1:
+        #         sep = ' ' + qb.cond_sep[-1].upper() + ' '
+        #         for sep_ix, cond_sep in qb.cond_sep.items():
+        #             if qb.condition_locs[qb.conditions[ix + 1][-1]] > sep_ix > qb.condition_locs[term[-1]]:
+        #                 sep = ' ' + cond_sep.upper() + ' '
+        #                 break
+        #     else:
+        #         sep = ' ' + qb.cond_sep[-1].upper() + ' '
 
+        # general_sep = ' '
+        # for ix, (cond_1, cond_2, sep) in enumerate(qb.grouped_conditions):
+        #     sql = sql + general_sep + encodeCondition(cond_1) + sep + encodeCondition(cond_2)
+        #     general_sep = ' and '
+
+        # general_sep = ' '
+        # for _, conds in qb.conditions_by_type.items():
+        #     sql = sql + general_sep + ' OR '.join([encodeCondition(cond) for cond in conds])
+        #     general_sep = ' AND '
+        sql = sql + ' AND '.join(
+            ['(' + ' OR '.join([encodeCondition(cond) for cond in conds]) + ')' for conds in
+             qb.conditions_by_type.values()])
         return sql
 
     def processCountConditions(self, qb, agg='COUNT'):
@@ -1095,7 +1117,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 display_name = ''
 
             if display_name == 'State':  # Using state abbreviations in queries instead of state names
-                state_name = entity_value.replace(
+                state_name = entity_value['value'].replace(
                     ' State', '').replace(' state', '')
                 print('Looking up state: {}..'.format(state_name))
                 entity_value = us.states.lookup(state_name).abbr
@@ -1150,6 +1172,12 @@ class ColumnEntityDecoder(EntityDecoderBase):
                                 ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
 
                     qb.condition_locs[qb.conditions[-1][-1]] = entity['startIndex']
+
+                    if entity['type'] in qb.conditions_by_type:
+                        qb.conditions_by_type[entity['type']].append(qb.conditions[-1])
+                    else:
+                        qb.conditions_by_type[entity['type']] = [qb.conditions[-1]]
+
                     if ("joins" in lu and lu["joins"]):
                         for join in lu["joins"]:
                             qb.addTable(join[0], join[1])
@@ -1385,6 +1413,17 @@ class LuisIntentProcessor:
         self.e_decoders["_LogicalLabel"] = LogicalLabelEntityDecoder(
             data_map)
 
+        self.geo_transformations = {
+            'County': 'county',
+            'builtin.geographyV2.state': 'state',
+            'State': 'state',
+            'builtin.geographyV2.city': 'city',
+            'City': 'city',
+        }
+        self.geography_entity_types = ['geographyV2', 'County', 'City']
+        self.date_entity_types = ['builtin.datetimeV2', 'builtin.datetimeV2.daterange']  # TODO: test dates
+        self.number_entity_types = ['builtin.number']  # TODO: test dates
+
     def get_intent_decoder(self, intent_name):
 
         if (intent_name in self.i_decoders):
@@ -1417,45 +1456,27 @@ class LuisIntentProcessor:
         new_qb.joins = qb.joins
         return new_qb
 
-    def process_entity_list(self, entity_list, query):
-        number_found = None
-        callLengths_found = []
-        for ix, e in enumerate(entity_list):
-            if e['type'] == 'builtin.number':
-                number_found = ix
-            if e['type'] == 'CallLength':
-                e['entity'] = e['entity'].lower().replace('minutes', '').strip()
-                callLengths_found.append(ix)
+    def process_entity_list(self, entity_list, query, entities_by_type):
+        for entity_type, entity_list in entities_by_type.items():
+            for e in entity_list:
+                decoder = self.get_entity_decoder(e)
 
-        if callLengths_found and number_found is not None:
-            entity_list[number_found]['type'] = 'CallLength'
-            for callLength_found in reversed(sorted(callLengths_found)):
-                del entity_list[callLength_found]
+                if decoder:
+                    print('Decoding {}...'.format(e))
+                    comparator = None
+                    for comp in query.comparators:  # TODO: Move to prepare_query
+                        if (comp[1]['position'] == 'before' and comp[1]['startIndex'] < e['startIndex']) \
+                                or (comp[1]['position'] == 'after' and comp[1]['startIndex'] > e['startIndex']):
+                            comparator = comp[0]
+                    qb = decoder.decode(e, query, comparator=comparator, string_operators=query.string_operators)
+                    query.merge(qb)
 
-        elif len(callLengths_found) > 1:
-            for callLength_found in reversed(sorted(callLengths_found)):
-                if 'key' not in entity_list[callLength_found] or entity_list[callLength_found]['key'] != 'number':
-                    del entity_list[callLength_found]
+                elif not e["type"].startswith("_"):
+                    print("No decoder for Entity", e["type"])
 
-        for e in entity_list:
-            decoder = self.get_entity_decoder(e)
-            if decoder:
-                print('Decoding {}...'.format(e))
-                comparator = None
-                for comp in query.comparators:
-                    if (comp[1]['position'] == 'before' and comp[1]['startIndex'] < e['startIndex']) \
-                            or (comp[1]['position'] == 'after' and comp[1]['startIndex'] > e['startIndex']):
-                        comparator = comp[0]
-                qb = decoder.decode(e, query, comparator=comparator, string_operators=query.string_operators)
-
-                query.merge(qb)
-
-            elif not e["type"].startswith("_"):
-                print("No decoder for Entity", e["type"])
-
-        if [cond for cond in query.conditions if
-            cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
-            query.distinct_values_query = self.generateDistinctValuesQuery(query)
+        # if [cond for cond in query.conditions if
+        #     cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
+        #     query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
         if query.is_compare:
             column_counter = defaultdict(int)
@@ -1478,6 +1499,153 @@ class LuisIntentProcessor:
             n -= 1
         return start
 
+    def entities_normalized(self, q):
+        entities = q['prediction']['entities']['$instance']
+        for entity_type, entities_in_type in entities.items():
+            for ix_in_type, entity in enumerate(entities_in_type):
+                entity_normalized = q['prediction']['entities'][entity_type][ix_in_type]
+                # entity_normalized = entities[entity_type][ix_in_type]
+                if isinstance(entity_normalized, list):
+                    entity['entity'] = entity_normalized[0]
+                elif isinstance(entity_normalized, dict):
+                    if 'text' in entity_normalized:
+                        entity['entity'] = entity_normalized['text']
+                    else:
+                        entity['entity'] = entity_normalized
+                else:
+                    entity['entity'] = entity_normalized
+        return entities
+
+    def get_entities_of_types(self, types, entities):
+        return [(entity, key) for key in types if key in entities for entity in entities[key]]
+
+    def remove_duplicate_geo_entities(self, geography_entities_found, entities):
+        for ix, (entity, key) in enumerate(geography_entities_found):
+            for ix_, (entity_, key_) in enumerate(geography_entities_found):
+                if ix == ix_:
+                    continue
+                if entity['text'] != entity_['text'] and entity['startIndex'] >= entity_['startIndex'] \
+                        and entity['startIndex'] + entity['length'] <= entity_['startIndex'] + entity_['length']:
+                    entities[key].remove(entity)
+                    geography_entities_found.pop(ix)
+                    break
+        return geography_entities_found, entities
+
+    def remove_dates_recognized_as_numbers(self, date_entities_found, number_entities_found, entities):
+        for date_ix, (date_entity, date_key) in enumerate(date_entities_found):
+            for number_ix, (number_entity, number_key) in enumerate(number_entities_found):
+                if date_entity['startIndex'] + date_entity['length'] \
+                        == number_entity['startIndex'] + number_entity['length']:
+                    entities[number_key].remove(number_entity)
+                    number_entities_found.pop(number_ix)
+                    break
+        return number_entities_found, entities
+
+    def identify_geographies_to_keep(self, query):
+        keep = []
+        if 'county' in query.lower():
+            for ix in range(query.lower().count('county')):
+                keep.append(('county', self.find_nth(query.lower(), 'county', ix + 1), len('county')))
+        if 'city' in query.lower():
+            for ix in range(query.lower().count('city')):
+                keep_ix = self.find_nth(query.lower(), 'city', ix + 1)
+                keep.extend([('city', keep_ix, len('city')), ('builtin.geographyV2.city', keep_ix, len('city'))])
+        if 'state' in query.lower():
+            for ix in range(query.lower().count('state')):
+                keep.append(
+                    ('builtin.geographyV2.state', self.find_nth(query.lower(), 'state', ix + 1), len('state')))
+        return keep
+
+    def clean_overlapping_entities(self, entities):
+        ix_to_ix = {}
+        ix_to_type = {}
+        ix_to_length = {}
+
+        to_remove = {}
+        for entity_type in entities.keys():
+            to_remove[entity_type] = []
+
+        for entity_type, entity_list in entities.items():
+            for ent_ix, entity in enumerate(entity_list):
+                start_index = entity['startIndex']
+                found = False
+                for ix in ix_to_length:
+                    if ix <= start_index < (ix + ix_to_length[ix]):
+                        found = True
+                        if entities[ix_to_type[ix]][ix_to_ix[ix]]['type'].startswith('_') \
+                                and not entity['type'].startswith('_') \
+                                or 'builtin' not in entities[ix_to_type[ix]][ix_to_ix[ix]]['type'] \
+                                and 'builtin' in entity['type']:
+                            to_remove[entity_type].append(ent_ix)
+                        elif entity['type'].startswith('_') and not entities[ix_to_type[ix]][ix_to_ix[ix]][
+                            'type'].startswith('_') \
+                                or 'builtin' not in entity['type'] and 'builtin' in \
+                                entities[ix_to_type[ix]][ix_to_ix[ix]]['type']:
+                            to_remove[ix_to_type[ix]].append(ix_to_ix[ix])
+                            ix_to_ix[start_index] = ent_ix
+                        elif not (
+                                entity['type'].startswith('_') or entities[ix_to_type[ix]][ix_to_ix[ix]][
+                            'type'].startswith('_')) \
+                                and ix_to_length[ix] < entity['length']:
+                            to_remove[ix_to_type[ix]].append(ix_to_ix[ix])
+                            ix_to_ix[start_index] = ent_ix
+                        elif not (entity['type'].startswith('_') or entities[ix_to_type[ix]][ix_to_ix[ix]][
+                            'type'].startswith('_')) and not entity['type'] in self.geography_entity_types:
+                            to_remove[entity_type].append(ent_ix)
+                        break
+                if not found:
+                    ix_to_ix[start_index] = ent_ix
+                    ix_to_type[start_index] = entity_type
+                    ix_to_length[start_index] = entity['length']
+
+        for entity_type, list_to_remove in to_remove.items():
+            for ix in reversed(sorted(list_to_remove)):
+                del entities[entity_type][ix]
+
+        return entities
+
+    def clean_geography_ents(self, geography_entities_found, keep, entities):
+        geo_by_type = defaultdict(list)
+        geo_ents = []
+        for entity, entity_type in geography_entities_found:
+
+            # If a keep matches on index
+            #   if matches on type, keep entity
+            #   else skip
+            # else keep
+
+            skip = False
+            for value, ix, length in keep:
+                if abs((entity['startIndex'] + entity['length']) - ix) <= 2 or abs(
+                        entity['startIndex'] - (ix + length)) <= 4:  # keep matches on index
+                    if value.lower() == entity['type'].lower():
+                        skip = False
+                        break
+                    else:
+                        skip = True
+            if not skip:
+                if entity in entities[entity_type]:
+                    entities[entity_type].remove(entity)
+                if entity['text'] in geo_by_type[self.geo_transformations[entity['type']]]:
+                    continue
+                else:
+                    geo_ents.append((entity, entity_type))
+                    geo_by_type[self.geo_transformations[entity['type']]].append(entity['text'])
+        return entities, geo_ents, geo_by_type
+
+    def generate_entity_permutations(self, geo_ents, entities):
+        text_to_entity = defaultdict(list)
+        for ent, ent_type in geo_ents:
+            text_to_entity[ent['text']].append((ent, ent_type))
+        geo_perms = [list(perm) for perm in list(itertools.product(*[e for e in text_to_entity.values()]))]
+        lists = []
+        for perm in geo_perms:
+            entities_perm = copy.deepcopy(entities)
+            for ent, ent_type in perm:
+                entities_perm[ent_type].append(ent)
+            lists.append(entities_perm)
+        return lists
+
     def prepare_query(self, q, prev_q, query_processor, is_a_prev_query=False):
         self.luis = q
 
@@ -1491,231 +1659,93 @@ class LuisIntentProcessor:
             print("Unable to continue. Un-recognized intent: ", this_intent)
             return False
 
-        entities = q['prediction']['entities']['$instance']
-        pprint(entities)
+        # entities = q['prediction']['entities']['$instance']
+        # pprint(entities)
 
-        entity_list = [{**entity, 'ix_in_type': ix, 'key': ent_type} for ent_type, entities_of_type in
-                       [(ent_type, entities[ent_type]) for ent_type in entities] for ix, entity in
-                       enumerate(entities_of_type)]
+        entities = self.entities_normalized(q)
+        entities = self.clean_overlapping_entities(entities)
 
-        for ix, entity in enumerate(entity_list):
-            entity_normalized = q['prediction']['entities'][entity['key']][entity['ix_in_type']]
-            if isinstance(entity_normalized, list):
-                entity['entity'] = entity_normalized[0]
-            elif isinstance(entity_normalized, dict):
-                if 'value' in entity_normalized:
-                    entity['entity'] = entity_normalized['value']
-                else:
-                    entity['entity'] = entity_normalized
-            else:
-                entity['entity'] = entity_normalized
-            entity_list[ix] = entity
+        geography_entities_found = self.get_entities_of_types(self.geography_entity_types, entities)
+        geography_entities_found, entities = self.remove_duplicate_geo_entities(geography_entities_found, entities)
 
-        geography_entity_types = [
-            'builtin.geographyV2.state', 'County', 'City', 'builtin.geographyV2.city']
+        date_entities_found = self.get_entities_of_types(self.date_entity_types, entities)
 
-        geography_entities_found = []
-        for type in geography_entity_types:
-            for entity in entity_list:
-                # for entity_ in geography_entities_found:
-                #     if entity['startIndex'] >= entity_['startIndex'] and entity['startIndex'] <= entity_[
-                #         'startIndex'] + entity_['length']:
-                #         continue
-                if entity['type'] == type:
-                    geography_entities_found.append(entity)
-
-        for ix, entity in enumerate(geography_entities_found):
-            for ix_, entity_ in enumerate(geography_entities_found):
-                if ix == ix_:
-                    continue
-                if entity['text'] != entity_['text'] and entity['startIndex'] >= entity_['startIndex'] \
-                        and entity['startIndex'] + entity['length'] <= entity_['startIndex'] + entity_['length']:
-                    entity_list.remove(entity)
-                    geography_entities_found.pop(ix)
-                    break
-
-        date_entities_found = []
-        number_entities_found = []
-        for entity in entity_list:
-            if entity['type'] == 'builtin.datetimeV2' or entity['type'] == 'builtin.datetimeV2.daterange':
-                date_entities_found.append(entity)
-            if entity['type'] == 'builtin.number':
-                number_entities_found.append(entity)
-
-        for date_entity in date_entities_found:
-            for number_entity in number_entities_found:
-                if date_entity['startIndex'] + date_entity['length'] == number_entity['startIndex'] + number_entity[
-                    'length']:
-                    entity_list.remove(number_entity)
+        number_entities_found = self.get_entities_of_types(self.number_entity_types, entities)
+        number_entities_found, entities = self.remove_dates_recognized_as_numbers(date_entities_found,
+                                                                                  number_entities_found, entities)
 
         print('There are {} geography entities.'.format(
             len(geography_entities_found)))
-        print(geography_entities_found)
-
-        keep = []
-        if 'county' in q['query'].lower():
-            for ix in range(q['query'].lower().count('county')):
-                keep.append(('county', self.find_nth(q['query'].lower(), 'county', ix + 1), len('county')))
-        if 'city' in q['query'].lower():
-            for ix in range(q['query'].lower().count('city')):
-                keep_ix = self.find_nth(q['query'].lower(), 'city', ix + 1)
-                keep.extend([('city', keep_ix, len('city')), ('builtin.geographyV2.city', keep_ix, len('city'))])
-        if 'state' in q['query'].lower():
-            for ix in range(q['query'].lower().count('state')):
-                keep.append(
-                    ('builtin.geographyV2.state', self.find_nth(q['query'].lower(), 'state', ix + 1), len('state')))
+        pprint(geography_entities_found)
 
         queries = []
         supplementary_queries = []
 
-        ix_to_ix = {}
-        ix_to_length = {}
+        keep = self.identify_geographies_to_keep(q['query'])
+        entities_no_geo, geo_ents, geo_by_type = self.clean_geography_ents(geography_entities_found, keep, entities)
 
-        to_remove = []
+        lists = self.generate_entity_permutations(geo_ents, entities_no_geo)
 
-        for ent_ix, entity in enumerate(entity_list):
-            start_index = entity['startIndex']
-            found = False
-            for ix in ix_to_length:
-                if start_index >= ix and start_index < (ix + ix_to_length[ix]):
-                    found = True
-                    if entity_list[ix_to_ix[ix]]['type'].startswith('_') and not entity['type'].startswith('_') \
-                            or 'builtin' not in entity_list[ix_to_ix[ix]]['type'] and 'builtin' in entity['type']:
-                        to_remove.append(ent_ix)
-                    elif entity['type'].startswith('_') and not entity_list[ix_to_ix[ix]]['type'].startswith('_') \
-                            or 'builtin' not in entity['type'] and 'builtin' in entity_list[ix_to_ix[ix]]['type']:
-                        to_remove.append(ix_to_ix[ix])
-                        ix_to_ix[start_index] = ent_ix
-                    elif not (entity['type'].startswith('_') or entity_list[ix_to_ix[ix]]['type'].startswith('_')) and \
-                            ix_to_length[ix] < entity['length']:
-                        to_remove.append(ix_to_ix[ix])
-                        ix_to_ix[start_index] = ent_ix
-                    elif not (entity['type'].startswith('_') or entity_list[ix_to_ix[ix]]['type'].startswith('_')):
-                        to_remove.append(ent_ix)
-                    break
+        for lst in lists:
+            flat_entity_list = [entity for entity_type in lst for entity in lst[entity_type]]
+            entity_list, query = intent_decoder.decode(
+                this_intent, flat_entity_list, prev_q=prev_q)
+            query = self.process_entity_list(entity_list, query, lst)
+            queries.append(query)
 
-            if not found:
-                ix_to_ix[start_index] = ent_ix
-                ix_to_length[start_index] = entity['length']
+        # if len(geo_ents) > 1:
+        #     for geo_ent in geo_ents:
+        #         supp_entity_list = [ent for ent in entity_list_ if ent['type'] != '_ConditionSeparator'] + [geo_ent]
+        #         supp_entity_list, supp_query = intent_decoder.decode(
+        #             this_intent, supp_entity_list, prev_q=prev_q)
+        #         supp_query = self.process_entity_list(supp_entity_list, supp_query)
+        #         supplementary_queries.append(supp_query)
 
-        for ix in reversed(sorted(to_remove)):
-            del entity_list[ix]
+        # else:
+        #     if this_intent == 'cross-by-field-name':
+        #         flat_entity_list = [entity for entity_type in entities for entity in entities[entity_type]]
+        #         entity_list, query = intent_decoder.decode(
+        #             this_intent, flat_entity_list, prev_q=prev_q)
+        #
+        #         field_names = findFieldNames(entity_list)
+        #         if len(field_names) < 2:
+        #             print('FATAL ERROR: Not enough fields for Cross')
+        #             return
+        #
+        #         field_name_1 = field_names[0]
+        #         field_name_2 = field_names[1]
+        #
+        #         values_1 = self.get_field_values(field_name_1, query.tables[0], query_processor)
+        #         values_1 = [value[field_name_1] for value in values_1['Output']]
+        #
+        #         values_2 = self.get_field_values(field_name_2, query.tables[0], query_processor)
+        #         values_2 = [value[field_name_2] for value in values_2['Output']]
+        #
+        #         for value_1 in values_1:
+        #             entity_list_ = copy.copy(entity_list)
+        #             query_ = copy.deepcopy(query)
+        #             entity_list_.append({'entity': value_1, 'type': field_name_1})
+        #             query_.conditions.append(['eq', '{}.{}'.format(query_.tables[0], field_name_1), value_1])
+        #             for value_2 in values_2:
+        #                 entity_list_.append({'entity': value_2, 'type': field_name_2})
+        #             query_.is_compare = True
+        #             query_ = self.process_entity_list(entity_list_, query_)
+        #             queries.append(query_)
+        #
+        #         union = True
 
-        geo_transformations = {
-            'County': 'county',
-            'builtin.geographyV2.state': 'state',
-            'State': 'state',
-            'builtin.geographyV2.city': 'city',
-            'City': 'city',
-        }
-        geo_by_type = defaultdict(list)
-
-        if len(geography_entities_found) > 1 and this_intent != 'cross-by-field-name' and 'compare' not in q[
-            'query'].lower():
-            # Build the initial query block
-            geo_ents = []
-            geo_ents_ = {}
-            for entity in geography_entities_found:
-
-                # If a keep matches on index
-                #   if matches on type, keep entity
-                #   else skip
-                # else keep
-
-                skip = False
-                for value, ix, length in keep:
-                    if abs((entity['startIndex'] + entity['length']) - ix) <= 2 or abs(
-                            entity['startIndex'] - (ix + length)) <= 4:  # keep matches on index
-                        if value.lower() == entity['type'].lower():
-                            skip = False
-                            break
-                        else:
-                            skip = True
-                if not skip:
-                    if entity['text'] in geo_by_type[geo_transformations[entity['type']]]:
-                        continue
-                    else:
-                        geo_ents.append(entity)
-                        geo_by_type[geo_transformations[entity['type']]].append(entity['text'])
-
-            entity_list_ = [
-                entity_ for entity_ in entity_list if
-                entity_ not in geography_entities_found]
-
-            # lists = []
-            # texts = []
-            # for ent in geo_ents:
-            #     if not lists or ent['text'] in texts:
-            #         lists.append(entity_list_ + [ent])
-            #     else:
-            #         for i, l in enumerate(lists):
-            #             lists[i] = l + [ent]
-            #     texts.append(ent['text'])
-
-            ents = defaultdict(list)
-            for ent in geo_ents:
-                ents[ent['text']].append(ent)
-            lists = [entity_list_ + list(perm) for perm in list(itertools.product(*[e for e in ents.values()]))]
-
-            for lst in lists:
-                entity_list, query = intent_decoder.decode(
-                    this_intent, entity_list, prev_q=prev_q)
-                query = self.process_entity_list(lst, query)
-                queries.append(query)
-
-            if len(geo_ents) > 1:
-                for geo_ent in geo_ents:
-                    supp_entity_list = [ent for ent in entity_list_ if ent['type'] != '_ConditionSeparator'] + [geo_ent]
-                    supp_entity_list, supp_query = intent_decoder.decode(
-                        this_intent, supp_entity_list, prev_q=prev_q)
-                    supp_query = self.process_entity_list(supp_entity_list, supp_query)
-                    supplementary_queries.append(supp_query)
-
-
-        else:
-
-            if this_intent == 'cross-by-field-name':
-                entity_list, query = intent_decoder.decode(
-                    this_intent, entity_list, prev_q=prev_q)
-
-                field_names = findFieldNames(entity_list)
-                if len(field_names) < 2:
-                    print('FATAL ERROR: Not enough fields for Cross')
-                    return
-
-                field_name_1 = field_names[0]
-                field_name_2 = field_names[1]
-
-                values_1 = self.get_field_values(field_name_1, query.tables[0], query_processor)
-                values_1 = [value[field_name_1] for value in values_1['Output']]
-
-                values_2 = self.get_field_values(field_name_2, query.tables[0], query_processor)
-                values_2 = [value[field_name_2] for value in values_2['Output']]
-
-                for value_1 in values_1:
-                    entity_list_ = copy.copy(entity_list)
-                    query_ = copy.deepcopy(query)
-                    entity_list_.append({'entity': value_1, 'type': field_name_1})
-                    query_.conditions.append(['eq', '{}.{}'.format(query_.tables[0], field_name_1), value_1])
-                    for value_2 in values_2:
-                        entity_list_.append({'entity': value_2, 'type': field_name_2})
-                    query_.is_compare = True
-                    query_ = self.process_entity_list(entity_list_, query_)
-                    queries.append(query_)
-
-                union = True
-
-            else:
-                entity_list, query = intent_decoder.decode(
-                    this_intent, entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
-                query = self.process_entity_list(entity_list, query)
-                # grouping_fields = [field[0].lower() for field in query.groups]
-                # condition_fields = [cond[1].lower() for cond in query.conditions]
-                # for entity in entity_list:
-                #     if entity['type'] == '_FieldName' and entity['entity'].lower() not in grouping_fields and not any(
-                #             [cond_field for cond_field in condition_fields if entity['entity'].lower() in cond_field[1]]):
-                #         query.groups.append((entity['entity'], entity['entity']))
-                queries.append(query)
+        # else:
+        #     flat_entity_list = [entity for entity_type in lst for entity in lst[entity_type]]
+        #     entity_list, query = intent_decoder.decode(
+        #         this_intent, flat_entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
+        #     query = self.process_entity_list(entity_list, query)
+        # grouping_fields = [field[0].lower() for field in query.groups]
+        # condition_fields = [cond[1].lower() for cond in query.conditions]
+        # for entity in entity_list:
+        #     if entity['type'] == '_FieldName' and entity['entity'].lower() not in grouping_fields and not any(
+        #             [cond_field for cond_field in condition_fields if entity['entity'].lower() in cond_field[1]]):
+        #         query.groups.append((entity['entity'], entity['entity']))
+        # queries.append(query)
 
         return queries, union, supplementary_queries
 
@@ -1801,10 +1831,10 @@ class AnswerzProcessor():
             cond_value = cond[-1]
             field_name = cond[1].split('.')[-1]
             if '%' in cond_value:
-                cond_value = row[cond[1]]
+                cond_value = cond_value.replace('%', '')
             if field_name.lower() == 'state':
                 cond_value = us.states.lookup(cond_value).name
-            conditions.append(cond_value + ' ' + field_name)
+            conditions.append(str(cond_value) + ' ' + field_name)
         return qb.queryIntent[-1] + ' ' + qb.queryIntent[0] + ' From ' + ' and '.join(conditions)
 
     def generate_rows_and_cols(self, pq, result):
@@ -1863,7 +1893,12 @@ class AnswerzProcessor():
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
 
-                col = qbr.renderConditions(pq) or 'Calls'
+                # col = qbr.renderConditions(pq) or 'Calls'
+                conds = qbr.renderConditions(pq)
+                if conds and len(conds) <= 128:
+                    col = conds
+                else:
+                    col = 'Calls'
                 total = sum([row[col] for row in result['Output']])
                 rows, cols = self.generate_rows_and_cols(pq, result)
 
