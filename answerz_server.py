@@ -152,6 +152,16 @@ class QueryBlock:
     def addGroup(self, group_field):
         self.groups.append(group_field)
 
+    def generateConditionalCountSelect(self, conditions):
+        # Count(IIF(CallLog3.City = 'Anaheim', 1, null)) AS [(CallLog3.City = 'Anaheim')],
+        qbr = QueryBlockRenderer()
+        rendered_condition = qbr.renderConditions(conditions)
+        sql = "Count(IIF({}, 1, null))".format(rendered_condition)
+        # field_name = rendered_condition if len(rendered_condition) < 125 else ' AND '.join(
+        #     [cond[0][-1] for cond in conditions.values()])
+        field_name = ' And '.join([cond[0][-1].replace('%', '') for cond in conditions.values()])
+        return [sql, field_name]
+
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
         # This is a way to ensure the array is COPIED and not REFERENCED. as we will be modifying the array
@@ -159,6 +169,22 @@ class QueryBlock:
                       group[0] not in self.groups_to_skip and group not in self.selects]
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
+
+        pivot_condition_type = list(self.conditions_by_type.keys())[-1]
+        pivot_conditions_count = len(self.conditions_by_type[pivot_condition_type])
+        other_condition_types = list(self.conditions_by_type.keys())[:-1]
+        for condition in self.conditions_by_type[pivot_condition_type]:
+            other_condition_selects = []
+            for other_condition_type in other_condition_types:
+                if len(self.conditions_by_type[other_condition_type]) <= 1:
+                    continue
+                for other_condition in self.conditions_by_type[other_condition_type]:
+                    other_condition_selects.append(self.generateConditionalCountSelect(
+                        {pivot_condition_type: [condition], other_condition_type: [other_condition]}))
+            if other_condition_selects:
+                allSelects.extend(other_condition_selects)
+            if pivot_conditions_count > 1:
+                allSelects.append(self.generateConditionalCountSelect({pivot_condition_type: [condition]}))
 
         return allSelects
 
@@ -205,7 +231,7 @@ class QueryBlockRenderer:
             qb.selects = self.processCountConditions(qb,
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
-        cond_sql = self.renderConditions(qb)
+        cond_sql = self.renderConditionsInQuery(qb)
         if cond_sql and len(cond_sql) <= 128:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
@@ -353,8 +379,10 @@ class QueryBlockRenderer:
 
         return sql
 
-    def renderConditions(self, qb):
-        sep = ""
+    def renderConditionsInQuery(self, qb):
+        return self.renderConditions(qb.conditions_by_type)
+
+    def renderConditions(self, conditions):
         sql = ""
 
         def encodeLHS(lhs):
@@ -383,30 +411,10 @@ class QueryBlockRenderer:
                 return encodeLHS(lhs) + " != " + encodeRHS(rhs)
             return op
 
-        # Handle the group selects
-        # for ix, term in enumerate(qb.conditions):
-        #     sql = sql + sep + encodeCondition(term)
-        #     if ix < len(qb.conditions) - 1:
-        #         sep = ' ' + qb.cond_sep[-1].upper() + ' '
-        #         for sep_ix, cond_sep in qb.cond_sep.items():
-        #             if qb.condition_locs[qb.conditions[ix + 1][-1]] > sep_ix > qb.condition_locs[term[-1]]:
-        #                 sep = ' ' + cond_sep.upper() + ' '
-        #                 break
-        #     else:
-        #         sep = ' ' + qb.cond_sep[-1].upper() + ' '
-
-        # general_sep = ' '
-        # for ix, (cond_1, cond_2, sep) in enumerate(qb.grouped_conditions):
-        #     sql = sql + general_sep + encodeCondition(cond_1) + sep + encodeCondition(cond_2)
-        #     general_sep = ' and '
-
-        # general_sep = ' '
-        # for _, conds in qb.conditions_by_type.items():
-        #     sql = sql + general_sep + ' OR '.join([encodeCondition(cond) for cond in conds])
-        #     general_sep = ' AND '
         sql = sql + ' AND '.join(
             ['(' + ' OR '.join([encodeCondition(cond) for cond in conds]) + ')' for conds in
-             qb.conditions_by_type.values()])
+             conditions.values()])
+
         return sql
 
     def processCountConditions(self, qb, agg='COUNT'):
@@ -1145,40 +1153,39 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     qb.addTable(table[0], table[1])
             if tables:
                 db_values = self.mapValues(tables[0], field_name, entity_value)
-                if (len(db_values) == 1):
+                if len(db_values) == 1:
 
                     if string_operators:
-                        if ("." in field_name):  # already scoped
+                        if "." in field_name:  # already scoped
                             s = string_operators[0].format(field_name, entity_value)
                             s = s.split(' ')
-                            qb.conditions.append([s[1], s[0], s[2]])
+                            condition = [s[1], s[0], s[2]]
                         else:
                             s = string_operators[0].format(tables[0] + "." + field_name, entity_value)
                             s = s.split(' ')
-                            qb.conditions.append([s[1], s[0], s[2]])
+                            condition = [s[1], s[0], s[2]]
                     elif exact_match:
-                        if ("." in field_name):  # already scoped
-                            qb.conditions.append(
-                                [(comparator if comparator else "eq"), field_name, entity_value])
+                        if "." in field_name:  # already scoped
+                            condition = [(comparator if comparator else "eq"), field_name, entity_value]
                         else:
-                            qb.conditions.append(
-                                [(comparator if comparator else "eq"), tables[0] + "." + field_name, entity_value])
+                            condition = [(comparator if comparator else "eq"), tables[0] + "." + field_name,
+                                         entity_value]
                     else:
-                        if ("." in field_name):  # already scoped
-                            qb.conditions.append(
-                                ["lk", field_name, '%' + entity_value + '%'])
+                        if "." in field_name:  # already scoped
+                            condition = ["lk", field_name, '%' + entity_value + '%']
                         else:
-                            qb.conditions.append(
-                                ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
+                            condition = ["lk", tables[0] + "." + field_name, '%' + entity_value + '%']
 
-                    qb.condition_locs[qb.conditions[-1][-1]] = entity['startIndex']
+                    # qb.selects.append(self.generateConditionalCountSelect(condition))
+                    qb.conditions.append(condition)
+                    qb.condition_locs[condition[-1]] = entity['startIndex']
 
                     if entity['type'] in qb.conditions_by_type:
-                        qb.conditions_by_type[entity['type']].append(qb.conditions[-1])
+                        qb.conditions_by_type[entity['type']].append(condition)
                     else:
-                        qb.conditions_by_type[entity['type']] = [qb.conditions[-1]]
+                        qb.conditions_by_type[entity['type']] = [condition]
 
-                    if ("joins" in lu and lu["joins"]):
+                    if "joins" in lu and lu["joins"]:
                         for join in lu["joins"]:
                             qb.addTable(join[0], join[1])
 
@@ -1842,7 +1849,7 @@ class AnswerzProcessor():
             row = result['Output'][0]
             cols = [{'field': 'col', 'headerName': '', 'flex': 1},
                     {'field': 'val', 'headerName': '', 'flex': 1}]
-            rows = [{'id': ix + 1, 'col': key.replace('_', ' ') if '.' not in key else pq.queryIntent[0],
+            rows = [{'id': ix + 1, 'col': key.replace('_', ' '),  # if '.' not in key else pq.queryIntent[0]
                      'val': val} for
                     ix, (key, val) in enumerate(row.items())]
         else:
@@ -1894,7 +1901,7 @@ class AnswerzProcessor():
                     result['Output'] else []
 
                 # col = qbr.renderConditions(pq) or 'Calls'
-                conds = qbr.renderConditions(pq)
+                conds = qbr.renderConditionsInQuery(pq)
                 if conds and len(conds) <= 128:
                     col = conds
                 else:

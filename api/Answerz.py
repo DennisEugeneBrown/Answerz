@@ -52,7 +52,7 @@ class Answerz(Resource):
                     continue
                 col_1 = group[1]
                 # col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
-                conds = qbr.renderConditions(qs[res_ix])
+                conds = qbr.renderConditionsInQuery(qs[res_ix])
                 if conds and len(conds) <= 128:
                     col_2 = conds
                 else:
@@ -60,7 +60,7 @@ class Answerz(Resource):
                 extra_cols = []
                 extra_rows = []
                 for supp_ix, supp_q in enumerate(supp_qs):
-                    supp_col = qbr.renderConditions(supp_q) or 'Calls'
+                    supp_col = qbr.renderConditionsInQuery(supp_q) or 'Calls'
                     extra_cols.append(supp_col)
                     rows = []
                     for row in res['supp_results'][supp_ix]['Output']:
@@ -87,8 +87,8 @@ class Answerz(Resource):
                  'total': res['total']})
         if len(tables) > 1:
             distinct_values = [
-                {'name': qbr.renderConditions(out_qs[ix]),
-                 'count': sum([v[qbr.renderConditions(out_qs[ix])] for v in val])} for
+                {'name': qbr.renderConditionsInQuery(out_qs[ix]),
+                 'count': sum([v[qbr.renderConditionsInQuery(out_qs[ix])] for v in val])} for
                 ix, val in enumerate(out)]
             distinct_values_table_cols = [
                 {'field': key, 'headerName': '', 'flex': 1} for key in
@@ -115,5 +115,5 @@ class Answerz(Resource):
                      "distinct_values": distinct_values,
                      "distinct_values_table": distinct_values_table,
                      'follow_up': follow_up,
-                     'conditions': ', '.join([qbr.renderConditions(q) for q in out_qs])}
+                     'conditions': ', '.join([qbr.renderConditionsInQuery(q) for q in out_qs])}
         return final_ret
