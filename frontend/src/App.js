@@ -66,7 +66,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.25'
+    const versionNumber = '2.0.26'
 
     const [getInputState, setInputState] = useState('');
 

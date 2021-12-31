@@ -1485,6 +1485,8 @@ class LuisIntentProcessor:
     def process_entity_list(self, entity_list, query, entities_by_type):
         for entity_type, entity_list in entities_by_type.items():
             for e in entity_list:
+                if entity_type == 'CallLength':
+                    e['entity'] = e['entity'].lower().replace('minutes', '').strip()
                 decoder = self.get_entity_decoder(e)
 
                 if decoder:
@@ -1601,7 +1603,7 @@ class LuisIntentProcessor:
                         if entities[ix_to_type[ix]][ix_to_ix[ix]]['type'].startswith('_') \
                                 and not entity['type'].startswith('_') \
                                 or 'builtin' not in entities[ix_to_type[ix]][ix_to_ix[ix]]['type'] \
-                                and 'builtin' in entity['type']:
+                                and 'builtin' in entity['type'] and not entity_type in self.geography_entity_types:
                             to_remove[entity_type].append(ent_ix)
                         elif entity['type'].startswith('_') and not entities[ix_to_type[ix]][ix_to_ix[ix]][
                             'type'].startswith('_') \
@@ -1617,7 +1619,7 @@ class LuisIntentProcessor:
                             to_remove[ix_to_type[ix]].append(ix_to_ix[ix])
                             ix_to_ix[start_index] = ent_ix
                         elif not (entity['type'].startswith('_') or entities[ix_to_type[ix]][ix_to_ix[ix]][
-                            'type'].startswith('_')) and not entity['type'] in self.geography_entity_types:
+                            'type'].startswith('_')) and not entity_type in self.geography_entity_types:
                             to_remove[entity_type].append(ent_ix)
                         break
                 if not found:
@@ -1651,13 +1653,15 @@ class LuisIntentProcessor:
                     else:
                         skip = True
             if not skip:
-                if entity in entities[entity_type]:
+                if entity_type in entities and entity in entities[entity_type]:
                     entities[entity_type].remove(entity)
                 if entity['text'] in geo_by_type[self.geo_transformations[entity['type']]]:
                     continue
                 else:
                     geo_ents.append((entity, entity_type))
                     geo_by_type[self.geo_transformations[entity['type']]].append(entity['text'])
+            elif entity_type in self.geography_entity_types and entity_type in entities:
+                entities[entity_type].remove(entity)
         return entities, geo_ents, geo_by_type
 
     def generate_entity_permutations(self, geo_ents, entities):
