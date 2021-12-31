@@ -1458,6 +1458,14 @@ class LuisIntentProcessor:
         new_qb = QueryBlock()
         new_qb.tables = qb.tables[0:1]
         new_qb.conditions = [cond for cond in qb.conditions if cond[0] == 'lk' or ' like ' in cond[0]]
+        new_qb.conditions_by_type = {}
+        for type_, conds in qb.conditions_by_type.items():
+            for cond in conds:
+                if cond[0] == 'lk' or ' like ' in cond[0]:
+                    if type_ in new_qb.conditions_by_type:
+                        new_qb.conditions_by_type[type_].append(cond)
+                    else:
+                        new_qb.conditions_by_type[type_] = [cond]
         field_name = new_qb.conditions[0][1] if new_qb.conditions[0][1] else new_qb.conditions[0][0].split(' like ')[0]
         new_qb.selects = [['COUNT(*)', field_name]]
         new_qb.groups = [[field_name, field_name]]
@@ -1482,9 +1490,9 @@ class LuisIntentProcessor:
                 elif not e["type"].startswith("_"):
                     print("No decoder for Entity", e["type"])
 
-        # if [cond for cond in query.conditions if
-        #     cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
-        #     query.distinct_values_query = self.generateDistinctValuesQuery(query)
+        if [cond for cond in query.conditions if
+            cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
+            query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
         if query.is_compare:
             column_counter = defaultdict(int)
@@ -1840,7 +1848,10 @@ class AnswerzProcessor():
             cond_value = cond[-1]
             field_name = cond[1].split('.')[-1]
             if '%' in cond_value:
-                cond_value = cond_value.replace('%', '')
+                if cond[1] in row:
+                    cond_value = row[cond[1]]
+                else:
+                    cond_value = cond_value.replace('%', '')
             if field_name.lower() == 'state':
                 cond_value = us.states.lookup(cond_value).name
             conditions.append(str(cond_value) + ' ' + field_name)
