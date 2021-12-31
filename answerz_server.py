@@ -170,21 +170,22 @@ class QueryBlock:
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
 
-        pivot_condition_type = list(self.conditions_by_type.keys())[-1]
-        pivot_conditions_count = len(self.conditions_by_type[pivot_condition_type])
-        other_condition_types = list(self.conditions_by_type.keys())[:-1]
-        for condition in self.conditions_by_type[pivot_condition_type]:
-            other_condition_selects = []
-            for other_condition_type in other_condition_types:
-                if len(self.conditions_by_type[other_condition_type]) <= 1:
-                    continue
-                for other_condition in self.conditions_by_type[other_condition_type]:
-                    other_condition_selects.append(self.generateConditionalCountSelect(
-                        {pivot_condition_type: [condition], other_condition_type: [other_condition]}))
-            if other_condition_selects:
-                allSelects.extend(other_condition_selects)
-            if pivot_conditions_count > 1:
-                allSelects.append(self.generateConditionalCountSelect({pivot_condition_type: [condition]}))
+        if self.conditions_by_type:
+            pivot_condition_type = list(self.conditions_by_type.keys())[-1]
+            pivot_conditions_count = len(self.conditions_by_type[pivot_condition_type])
+            other_condition_types = list(self.conditions_by_type.keys())[:-1]
+            for condition in self.conditions_by_type[pivot_condition_type]:
+                other_condition_selects = []
+                for other_condition_type in other_condition_types:
+                    if len(self.conditions_by_type[other_condition_type]) <= 1:
+                        continue
+                    for other_condition in self.conditions_by_type[other_condition_type]:
+                        other_condition_selects.append(self.generateConditionalCountSelect(
+                            {pivot_condition_type: [condition], other_condition_type: [other_condition]}))
+                if other_condition_selects:
+                    allSelects.extend(other_condition_selects)
+                if pivot_conditions_count > 1:
+                    allSelects.append(self.generateConditionalCountSelect({pivot_condition_type: [condition]}))
 
         return allSelects
 
@@ -1587,7 +1588,8 @@ class LuisIntentProcessor:
                         elif entity['type'].startswith('_') and not entities[ix_to_type[ix]][ix_to_ix[ix]][
                             'type'].startswith('_') \
                                 or 'builtin' not in entity['type'] and 'builtin' in \
-                                entities[ix_to_type[ix]][ix_to_ix[ix]]['type']:
+                                entities[ix_to_type[ix]][ix_to_ix[ix]]['type'] and not ix_to_type[
+                                                                                           ix] in self.geography_entity_types:
                             to_remove[ix_to_type[ix]].append(ix_to_ix[ix])
                             ix_to_ix[start_index] = ent_ix
                         elif not (
