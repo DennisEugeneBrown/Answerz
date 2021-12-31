@@ -69,6 +69,7 @@
           "name": "builtin.personName",
           "field": "PhoneWorker",
           "exact_match": false,
+          "choice": true,
           "joins": null
         },
         {
@@ -118,7 +119,7 @@
           "type": "string",
           "name": "PhoneWorker",
           "field": "PhoneWorker",
-          "exact_match": false,
+          "exact_match": true,
           "joins": null
         },
         {
@@ -252,6 +253,7 @@
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
+          "choice": false,
           "default_positive_value": "Yes",
           "default_negative_value": "No",
           "joins": null
@@ -262,6 +264,7 @@
           "name": "Need",
           "field": "CallLogNeeds.Need",
           "exact_match": false,
+          "choice": false,
           "joins": [
             [
               "CallLogNeeds",
@@ -574,7 +577,8 @@
           "name": "Referral",
           "field": "Referral",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -885,6 +889,7 @@
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
+          "choice": false,
           "default_positive_value": "Yes",
           "default_negative_value": "No",
           "joins": [
@@ -902,7 +907,8 @@
           "name": "Referral",
           "field": "Referral",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1241,6 +1247,7 @@
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
+          "choice": false,
           "default_positive_value": "Yes",
           "default_negative_value": "No",
           "joins": [
@@ -1277,7 +1284,8 @@
           "name": "TaxonomyName",
           "field": "TaxonomyName",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1285,7 +1293,8 @@
           "name": "Need",
           "field": "Need",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1293,7 +1302,8 @@
           "name": "Level1Name",
           "field": "Level1Name",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1301,7 +1311,8 @@
           "name": "Level2Name",
           "field": "Level2Name",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1317,7 +1328,8 @@
           "name": "Level4Name",
           "field": "Level4Name",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1325,7 +1337,8 @@
           "name": "Level5Name",
           "field": "Level5Name",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1333,7 +1346,8 @@
           "name": "AIRSNeedsCategory",
           "field": "AIRSNeedsCategory",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1644,6 +1658,7 @@
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
+          "choice": false,
           "default_positive_value": "Yes",
           "default_negative_value": "No",
           "joins": [
@@ -1661,7 +1676,8 @@
           "name": "Referral",
           "field": "Referral",
           "joins": null,
-          "exact_match": false
+          "exact_match": false,
+          "choice": false
         },
         {
           "class": "field",
@@ -1978,6 +1994,7 @@
             "LGBTQ": "LGBTQ"
           },
           "exact_match": false,
+          "choice": false,
           "default_positive_value": "Yes",
           "default_negative_value": "No",
           "joins": [

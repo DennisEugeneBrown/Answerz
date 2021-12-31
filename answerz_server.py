@@ -132,6 +132,7 @@ class QueryBlock:
         self.logical_label = False
         self.condition_locs = {}
         self.conditions_by_type = {}
+        self.choice_for_field = {}
 
     def addTable(self, tableNames, join=None):
         if not isinstance(tableNames, list):
@@ -220,6 +221,7 @@ class QueryBlock:
         self.logical_label = qb_other.logical_label
         self.condition_locs = {**self.condition_locs, **qb_other.condition_locs}
         self.conditions_by_type = self.merge_conditions_by_type(qb_other.conditions_by_type)
+        self.choice_for_field = {**self.choice_for_field, **qb_other.choice_for_field}
         return True
 
 
@@ -1111,7 +1113,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
         if (len(values) == 1):
 
             entity_name = entity["type"]
-            entity_value = values[0]
+            entity_value = values[0]['value'] if isinstance(values[0], dict) else values[0]
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -1126,7 +1128,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 display_name = ''
 
             if display_name == 'State':  # Using state abbreviations in queries instead of state names
-                state_name = entity_value['value'].replace(
+                state_name = entity_value.replace(
                     ' State', '').replace(' state', '')
                 print('Looking up state: {}..'.format(state_name))
                 entity_value = us.states.lookup(state_name).abbr
@@ -1140,10 +1142,18 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     ' County', '').replace(' county', '')
 
             exact_match = True
-            if lu and 'exact_match' in lu and lu['exact_match'] == False:
+            choice_for_field = {}
+            if lu and 'exact_match' in lu and lu['exact_match'] is False:
                 exact_match = False
+                if 'choice' in lu:
+                    if "." in field_name:  # already scoped
+                        choice_for_field[lu['field']] = lu['choice']
+                    else:
+                        choice_for_field[lu['tables'][0] + '.' + lu['field']] = lu['choice']
 
             qb = QueryBlock(query_block.queryIntent)
+
+            qb.choice_for_field = choice_for_field
 
             print(tables)
             for table in tables:
@@ -1490,8 +1500,8 @@ class LuisIntentProcessor:
                 elif not e["type"].startswith("_"):
                     print("No decoder for Entity", e["type"])
 
-        if [cond for cond in query.conditions if
-            cond[0] == 'lk'] and not query.string_operators and not query.logical_label:
+        if [cond for cond in query.conditions if cond[0] == 'lk' and query.choice_for_field[
+            cond[1]]] and not query.string_operators and not query.logical_label:
             query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
         if query.is_compare:
@@ -1682,6 +1692,9 @@ class LuisIntentProcessor:
         entities = self.entities_normalized(q)
         entities = self.clean_overlapping_entities(entities)
 
+        if is_a_prev_query:
+            entities.pop('_GroupAction')
+
         geography_entities_found = self.get_entities_of_types(self.geography_entity_types, entities)
         geography_entities_found, entities = self.remove_duplicate_geo_entities(geography_entities_found, entities)
 
@@ -1706,7 +1719,7 @@ class LuisIntentProcessor:
         for lst in lists:
             flat_entity_list = [entity for entity_type in lst for entity in lst[entity_type]]
             entity_list, query = intent_decoder.decode(
-                this_intent, flat_entity_list, prev_q=prev_q)
+                this_intent, flat_entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
             query = self.process_entity_list(entity_list, query, lst)
             queries.append(query)
 
