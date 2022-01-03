@@ -50,7 +50,7 @@ function App() {
     const [getMessage, setGetMessage] = useState({})
     const [getTable, setGetTable] = useState({})
     const [getIsScript, setIsScript] = useState(false)
-    const [getChartType, setChartType] = useState('LineChart')
+    const [getChartType, setChartType] = useState('ColumnChart')
     const [formData, setFormData] = useReducer(formReducer, {});
     const [submitting, setSubmitting] = useState(false);
     const [getError, setError] = useState(false);
@@ -66,7 +66,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.26'
+    const versionNumber = '2.0.27'
 
     const [getInputState, setInputState] = useState('');
 

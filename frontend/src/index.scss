@@ -15,7 +15,8 @@ code {
 
 .MuiDataGrid-columnHeaderTitleContainer {
   font-size: xx-large;
-  justify-content: center
+  justify-content: center;
+  background-color: rgba(235, 235, 235, .7);
 }
 
 //
@@ -28,9 +29,10 @@ code {
   font-size: xxx-large;
 }
 
+
 .MuiDataGrid-row {
   :nth-child(2) {
-    background-color: rgba(235, 235, 235, .7)
+    background-color: rgba(235, 235, 235, .7);
   }
 
   font-size: xxx-large;

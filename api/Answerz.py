@@ -69,7 +69,7 @@ class Answerz(Resource):
                     extra_rows.append(rows)
 
                 chart_data.append([col_1, col_2] + extra_cols)
-                for ix, row in enumerate(res['result']['Output']):
+                for ix, row in enumerate(res['result']['OldOutput']):
                     if row[col_1] in extra_rows_by_group:  # Fill up chart data for the corresponding group values
                         chart_data.append(
                             [str(row[col_1]), row[col_2]] + [extra_rows_by_group[row[col_1]][col] for col in
@@ -79,7 +79,7 @@ class Answerz(Resource):
 
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
-            out.append(result['Output'])
+            out.append(result['OldOutput'])
             print(result['Output'])
             # chart_data = chart_data[0:1] + sorted(chart_data[1:], key=lambda x: x[1], reverse=True)
             tables.append(
@@ -91,7 +91,7 @@ class Answerz(Resource):
                  'count': sum([v[qbr.renderConditionsInQuery(out_qs[ix])] for v in val])} for
                 ix, val in enumerate(out)]
             distinct_values_table_cols = [
-                {'field': key, 'headerName': '', 'flex': 1} for key in
+                {'field': key, 'headerName': '', 'flex': 1 if key == 'name' else 0.3} for key in
                 list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
             distinct_values_table_rows = [
                 {'id': ix + 1, 'value': ap.generate_text_query(qs[ix], row),

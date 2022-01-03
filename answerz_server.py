@@ -696,13 +696,11 @@ class AggregationByDescriptionIntentDecoder:
                 if _fieldNames:
                     for ix, _fieldName in enumerate(_fieldNames):
                         if _fieldName_entities[ix]['startIndex'] > _groupAction['startIndex']:
-                            _, mapped_grouping = data_map_repo.findGrouping(
-                                _element, _fieldName)
+                            _, mapped_grouping = data_map_repo.findGrouping(_element, _fieldName)
                             mapped_groupings.append(mapped_grouping)
                             # break
                 elif _logicalLabel:
-                    _, mapped_grouping = data_map_repo.findGrouping(
-                        _element, _logicalLabel)
+                    _, mapped_grouping = data_map_repo.findGrouping(_element, _logicalLabel)
                     mapped_groupings = [mapped_grouping]
                     del entities[_logicalLabel_ix]
                 else:
@@ -1256,11 +1254,18 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 entity_value = 'YES'
 
             exact_match = True
+            choice_for_field = {}
             if 'exact_match' in lu and lu['exact_match'] == False:
                 exact_match = False
+                if 'choice' in lu:
+                    if "." in field_name:  # already scoped
+                        choice_for_field[lu['field'][entity['entity']]] = lu['choice']
+                    else:
+                        choice_for_field[lu['tables'][0] + '.' + lu['field'][entity['entity']]] = lu['choice']
 
             qb = QueryBlock(query_block.queryIntent)
             qb.logical_label = True
+            qb.choice_for_field = choice_for_field
 
             for table in tables:
                 if (type(table) == str):
@@ -1272,25 +1277,26 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             db_values = self.mapValues(tables[0], field_name, entity_value)
             if (len(db_values) == 1):
                 if string_operators:
-                    if ("." in field_name):  # already scoped
-                        qb.conditions.append(
-                            [(string_operators[0].format(field_name, entity_value)), '', ''])
+                    if "." in field_name:  # already scoped
+                        condition = [(string_operators[0].format(field_name, entity_value)), '', '']
                     else:
-                        qb.conditions.append(
-                            [(string_operators[0].format(tables[0] + "." + field_name, entity_value)), '', ''])
+                        condition = [(string_operators[0].format(tables[0] + "." + field_name, entity_value)), '', '']
                 elif exact_match:
-                    if ("." in field_name):  # already scoped
-                        qb.conditions.append(["eq", field_name, entity_value])
+                    if "." in field_name:  # already scoped
+                        condition = ["eq", field_name, entity_value]
                     else:
-                        qb.conditions.append(
-                            ["eq", tables[0] + "." + field_name, entity_value])
+                        condition = ["eq", tables[0] + "." + field_name, entity_value]
                 else:
-                    if ("." in field_name):  # already scoped
-                        qb.conditions.append(
-                            ["lk", field_name, '%' + entity_value + '%'])
+                    if "." in field_name:  # already scoped
+                        condition = ["lk", field_name, '%' + entity_value + '%']
                     else:
-                        qb.conditions.append(
-                            ["lk", tables[0] + "." + field_name, '%' + entity_value + '%'])
+                        condition = ["lk", tables[0] + "." + field_name, '%' + entity_value + '%']
+
+                qb.conditions.append(condition)
+                if entity['type'] in qb.conditions_by_type:
+                    qb.conditions_by_type[lu['field'][entity['entity']]].append(condition)
+                else:
+                    qb.conditions_by_type[lu['field'][entity['entity']]] = [condition]
 
                 if ("joins" in lu and lu["joins"]):
                     for join in lu["joins"]:
@@ -1341,16 +1347,28 @@ class DateRangeEntityDecoder(EntityDecoderBase):
             qb = QueryBlock(query_block.queryIntent)
 
             if "start" in entity_value:
-                qb.conditions.append(
-                    ["gte", field_name, entity_value["start"]])
+                condition = ["gte", field_name, entity_value["start"]]
+                qb.conditions.append(condition)
+                if entity['type'] + 'Start' in qb.conditions_by_type:
+                    qb.conditions_by_type[entity['type'] + 'Start'].append(condition)
+                else:
+                    qb.conditions_by_type[entity['type'] + 'Start'] = [condition]
             if "end" in entity_value:
-                qb.conditions.append(
-                    ["lt", field_name, entity_value["end"]])
+                condition = ["lt", field_name, entity_value["end"]]
+                qb.conditions.append(condition)
+                if entity['type'] + 'End' in qb.conditions_by_type:
+                    qb.conditions_by_type[entity['type'] + 'End'].append(condition)
+                else:
+                    qb.conditions_by_type[entity['type'] + 'End'] = [condition]
             else:
-                qb.conditions.append(
-                    ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
+                condition = ["lt", field_name, datetime.now().strftime('%Y-%m-%d')]
+                qb.conditions.append(condition)
+                if entity['type'] in qb.conditions_by_type:
+                    qb.conditions_by_type[entity['type']].append(condition)
+                else:
+                    qb.conditions_by_type[entity['type']] = [condition]
 
-            if ("joins" in lu and lu["joins"]):
+            if "joins" in lu and lu["joins"]:
                 for join in lu["joins"]:
                     qb.addTable(join[0], join[1])
 
@@ -1438,8 +1456,9 @@ class LuisIntentProcessor:
             'builtin.geographyV2.city': 'city',
             'City': 'city',
         }
-        self.geography_entity_types = ['geographyV2', 'County', 'City']
-        self.date_entity_types = ['builtin.datetimeV2', 'builtin.datetimeV2.daterange']  # TODO: test dates
+        self.geography_entity_types = ['geographyV2', 'County', 'City', 'State']
+        self.date_entity_types = ['datetimeV2', 'builtin.datetimeV2',
+                                  'builtin.datetimeV2.daterange']  # TODO: test dates
         self.number_entity_types = ['builtin.number']  # TODO: test dates
 
     def get_intent_decoder(self, intent_name):
@@ -1615,7 +1634,8 @@ class LuisIntentProcessor:
                         elif not (
                                 entity['type'].startswith('_') or entities[ix_to_type[ix]][ix_to_ix[ix]][
                             'type'].startswith('_')) \
-                                and ix_to_length[ix] < entity['length']:
+                                and ix_to_length[ix] < entity[
+                            'length'] and not entity_type in self.geography_entity_types:
                             to_remove[ix_to_type[ix]].append(ix_to_ix[ix])
                             ix_to_ix[start_index] = ent_ix
                         elif not (entity['type'].startswith('_') or entities[ix_to_type[ix]][ix_to_ix[ix]][
@@ -1812,7 +1832,15 @@ class QueryProcessor:
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
             rows.append(row_dictionary)
-        output = {'Output': rows}
+        transposed_output = []
+        for header in headers[1:]:
+            header = header[1]
+            transposed_row = {'Header': header}
+            for row in rows:
+                new_header = str(row[headers[0][1]])
+                transposed_row[new_header] = row[header]
+            transposed_output.append(transposed_row)
+        output = {'OldOutput': rows, 'Output': transposed_output}
         return output
 
     def test(self):
@@ -1886,7 +1914,7 @@ class AnswerzProcessor():
             cols = [
                 {'field': key,
                  'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
-                 'flex': 1}
+                 'flex': 1 if key == 'Header' else 0.5, 'resizable': True}
                 for key
                 in
                 list(result['Output'][0].keys())] if \
@@ -1936,7 +1964,7 @@ class AnswerzProcessor():
                     col = conds
                 else:
                     col = 'Calls'
-                total = sum([row[col] for row in result['Output']])
+                total = sum([row[col] for row in result['OldOutput']])
                 rows, cols = self.generate_rows_and_cols(pq, result)
 
                 totals_table = self.queryProcessor.generate_and_run_query(pq.totals) if pq.totals else None
@@ -1954,7 +1982,7 @@ class AnswerzProcessor():
                     if pq.distinct_values_query else None
 
                 distinct_values_table_cols = [
-                    {'field': key, 'headerName': '', 'flex': 1} for key in
+                    {'field': key, 'headerName': '', 'flex': 1 if key == 'name' else 0.3} for key in
                     list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
                     distinct_values_table[0]['Output']) > 1 else []
 
