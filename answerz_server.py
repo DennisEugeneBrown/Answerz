@@ -1914,7 +1914,7 @@ class AnswerzProcessor():
             cols = [
                 {'field': key,
                  'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
-                 'flex': 1 if key == 'Header' else 0.5, 'resizable': True}
+                 'flex': 1 if key == 'Header' else 0.3, 'resizable': True}
                 for key
                 in
                 list(result['Output'][0].keys())] if \
