@@ -9,11 +9,13 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import {JsonToTable} from "react-json-to-table";
 import ReactVoiceInput from 'react-voice-input';
+import {CopyBlock, dracula} from "react-code-blocks";
 import Checkbox from '@mui/material/Checkbox';
 import {Chart} from "react-google-charts";
 import {DataGrid} from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import ReactCodeSnippet from 'react-code-snippet'
 import Input from '@mui/material/Input';
 import {CSVReader} from 'react-papaparse'
 import Modal from '@mui/material/Modal';
@@ -30,6 +32,7 @@ const THEME = createTheme({
         // so a smaller fontsize may be appropriate.
         fontSize: 200,
     },
+
 });
 
 const formReducer = (state, event) => {
@@ -66,7 +69,7 @@ function App() {
     });
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.27'
+    const versionNumber = '2.0.28'
 
     const [getInputState, setInputState] = useState('');
 
@@ -106,6 +109,10 @@ function App() {
     }
 
     const submit = (inputValue) => {
+        if (inputValue.toLowerCase() == 'properties') {
+            setOpen(true);
+            return;
+        }
         setSubmitting(true);
         axios.post('http://localhost:1234/answerz', {
             'text': inputValue.replace('  ', ' '),
@@ -140,7 +147,6 @@ function App() {
         border: '2px solid #000',
         boxShadow: 24,
         p: 4,
-        fontSize: 96,
     };
 
     function update_table() {
@@ -288,54 +294,54 @@ function App() {
         <div className="App">
             <div id='layout'>
 
-                <div id='left' className={leftOpen}>
-                    <div className='icon'
-                         onClick={toggleSidebar}>
-                        &equiv;
-                    </div>
-                    <div className='bordered'>
-                        <div className={`sidebar ${leftOpen}`}>
-                            <div className='header'>
-                                <h2 className='titleLeft'>
-                                    Data Panel
-                                </h2>
-                            </div>
-                            <div className='leftContent'>
-                                <div className='header'>
-                                    <div className='item'>
-                                        <h3>Source Table</h3>
-                                    </div>
-                                </div>
-                                <div className='header'>
-                                    <div className='item'>
-                                        <h3>Data Tables</h3>
-                                    </div>
-                                </div>
-                                {
-                                    getDataTables.status === 200 ?
-                                        getDataTables.data.map((item, key) => {
-                                            return <div className='header'>
-                                                <p className='listItem'>{item}</p>
-                                            </div>
-                                        }) : ''
-                                }
-                                <div className='header'>
-                                    <div className='item'>
-                                        <h3>Columns</h3>
-                                    </div>
-                                </div>
-                                {
-                                    getColumns.status === 200 ?
-                                        getColumns.data.map((item, key) => {
-                                            return <div className='header'>
-                                                <p className='listItem'>{item}</p>
-                                            </div>
-                                        }) : ''
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {/*<div id='left' className={leftOpen}>*/}
+                {/*    <div className='icon'*/}
+                {/*         onClick={toggleSidebar}>*/}
+                {/*        &equiv;*/}
+                {/*    </div>*/}
+                {/*    <div className='bordered'>*/}
+                {/*        <div className={`sidebar ${leftOpen}`}>*/}
+                {/*            <div className='header'>*/}
+                {/*                <h2 className='titleLeft'>*/}
+                {/*                    Data Panel*/}
+                {/*                </h2>*/}
+                {/*            </div>*/}
+                {/*            <div className='leftContent'>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <div className='item'>*/}
+                {/*                        <h3>Source Table</h3>*/}
+                {/*                    </div>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <div className='item'>*/}
+                {/*                        <h3>Data Tables</h3>*/}
+                {/*                    </div>*/}
+                {/*                </div>*/}
+                {/*                {*/}
+                {/*                    getDataTables.status === 200 ?*/}
+                {/*                        getDataTables.data.map((item, key) => {*/}
+                {/*                            return <div className='header'>*/}
+                {/*                                <p className='listItem'>{item}</p>*/}
+                {/*                            </div>*/}
+                {/*                        }) : ''*/}
+                {/*                }*/}
+                {/*                <div className='header'>*/}
+                {/*                    <div className='item'>*/}
+                {/*                        <h3>Columns</h3>*/}
+                {/*                    </div>*/}
+                {/*                </div>*/}
+                {/*                {*/}
+                {/*                    getColumns.status === 200 ?*/}
+                {/*                        getColumns.data.map((item, key) => {*/}
+                {/*                            return <div className='header'>*/}
+                {/*                                <p className='listItem'>{item}</p>*/}
+                {/*                            </div>*/}
+                {/*                        }) : ''*/}
+                {/*                }*/}
+                {/*            </div>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
 
                 <div id='main'>
                     <header>
@@ -511,9 +517,9 @@ function App() {
                                                                             },
                                                                         }}
                                                                     />
-                                                                    {/*<Button*/}
-                                                                    {/*    onClick={handleOpen}>Chart Properties*/}
-                                                                    {/*</Button>*/}
+                                                                    <Button
+                                                                        onClick={handleOpen}>Chart Properties
+                                                                    </Button>
                                                                     <Button
                                                                         onClick={handleChartSwitch}>Switch chart
                                                                     </Button>
@@ -594,12 +600,12 @@ function App() {
                                             aria-describedby="modal-modal-description"
                                         >
                                             <Box sx={style}>
-                                                <Typography id="modal-modal-title" variant="h6" component="h2"
+                                                <Typography id="modal-modal-title" variant="h5" component="h2"
                                                             textAlign={'center'}>
-                                                    Chart Properties
+                                                    Properties
                                                 </Typography>
                                                 <div>
-                                                    <div>
+                                                    <div className='PropertiesField'>
                                                         <TextField
                                                             label="Chart Name"
                                                             defaultValue=""
@@ -607,38 +613,91 @@ function App() {
                                                             contentEditable="false"
                                                         />
                                                     </div>
-                                                    <div>
+                                                    <div className='PropertiesLabel'>
+                                                        <label>Command</label>
+                                                    </div>
+                                                    <div className='PropertiesField'>
+                                                        <label>{getTable.data.query}</label>
+                                                    </div>
+                                                    {/*<TextField*/}
+                                                    {/*    label="Command"*/}
+                                                    {/*    defaultValue={getTable.data.query}*/}
+                                                    {/*    variant="standard"*/}
+                                                    {/*    inputProps={*/}
+                                                    {/*        {readOnly: true,}*/}
+                                                    {/*    }*/}
+                                                    {/*/>*/}
+                                                    <div className='PropertiesLabel'>
+                                                        <label>SQL</label>
+                                                    </div>
+                                                    <div className='PropertiesField'>
+                                                        <ReactCodeSnippet lang="sql"
+                                                                          code={getTable.data.queries[0].toUpperCase()}/>
+                                                    </div>
+                                                    <div className='PropertiesLabel'>
+                                                        <label>Columns</label>
+                                                    </div>
+                                                    <div className='PropertiesField'>
+                                                        {Object.keys(getTable.data.tables[0].rows[0]).map(val => {
+                                                            if (['id', 'Header', 'None'].includes(val))
+                                                                return;
+                                                            return (
+                                                                <div><TextField
+                                                                    // defaultValue={getTable.data.tables[0].chart_data[0][1]}
+                                                                    defaultValue={val}
+                                                                    variant="standard"/></div>);
+                                                        })}
+                                                    </div>
+                                                    <div className='PropertiesLabel'>
+                                                        <label>Rows</label>
+                                                    </div>
+                                                    <div className='PropertiesField'>
+                                                        {getTable.data.tables[0].rows.map(row => {
+                                                            return (
+                                                                <div><TextField
+                                                                    // defaultValue={getTable.data.tables[0].chart_data[0][1]}
+                                                                    defaultValue={row['Header']}
+                                                                    variant="standard"/></div>);
+                                                        })}
+                                                    </div>
+                                                    <div className='PropertiesField'>
                                                         <TextField
-                                                            label="Command"
-                                                            defaultValue={getTable.data.query}
+                                                            label="Data"
+                                                            defaultValue="Count"
                                                             variant="standard"
-                                                            inputProps={
-                                                                {readOnly: true,}
-                                                            }
                                                         />
                                                     </div>
-                                                    <div>
+                                                    <div className='PropertiesField'>
                                                         <TextField
-                                                            label="Horizontal Axis Label"
-                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
+                                                            label="Filters"
+                                                            defaultValue={getTable.data.conditions}
                                                             variant="standard"
                                                         />
                                                     </div>
-                                                    <div>
+                                                </div>
+                                                <Typography id="modal-modal-title" variant="h6" component="h3"
+                                                            textAlign={'center'}>
+                                                    Settings
+                                                </Typography>
+                                                <div>
+                                                    <div className='PropertiesField'>
                                                         <TextField
-                                                            label="Vertical Axis Label"
-                                                            defaultValue={getTable.data.tables[0].chart_data[0][1]}
+                                                            label="Chart Title"
                                                             variant="standard"
                                                         />
                                                     </div>
-                                                    <div>
-                                                        <FormControlLabel control={<Checkbox defaultChecked/>}
-                                                                          label="Label"/>
-                                                        {/*<Checkbox*/}
-                                                        {/*    label={label}*/}
-                                                        {/*    defaultUnchecked*/}
-                                                        {/*    onChange={handleBoxChange}/>*/}
-                                                        {/*<span style={{'font-size': 'x-large'}}>Show Column Totals Bottom</span>*/}
+                                                    <div className='PropertiesField'>
+                                                        <TextField
+                                                            label="X-Axis Label"
+                                                            defaultValue={getTable.data.conditions}
+                                                            variant="standard"
+                                                        />
+                                                    </div>
+                                                    <div className='PropertiesField'>
+                                                        <TextField
+                                                            label="Y-Axis Label"
+                                                            variant="standard"
+                                                        />
                                                     </div>
                                                 </div>
                                                 {/*<div>*/}
@@ -686,63 +745,63 @@ function App() {
                     </header>
                 </div>
 
-                <div id='right' className={rightOpen}>
-                    <div className='icon'
-                         onClick={toggleSidebar}>
-                        &equiv;
-                    </div>
-                    <div className='bordered'>
-                        <div className={`sidebar ${rightOpen}`}>
-                            <div className='header'>
-                                <h2 className='titleRight'>
-                                    Commands
-                                </h2>
-                            </div>
-                            <div className='leftContent'>
-                                <div className='header'>
-                                    <h3 className='item'>
-                                        Analytical Commands
-                                    </h3>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Count
-                                    </p>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Average
-                                    </p>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Cross
-                                    </p>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Compare
-                                    </p>
-                                </div>
-                                <div className='header'>
-                                    <h3 className='item'>
-                                        Selection Commands
-                                    </h3>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Breakout By
-                                    </p>
-                                </div>
-                                <div className='header'>
-                                    <p className='item'>
-                                        Where / Filter
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {/*<div id='right' className={rightOpen}>*/}
+                {/*    <div className='icon'*/}
+                {/*         onClick={toggleSidebar}>*/}
+                {/*        &equiv;*/}
+                {/*    </div>*/}
+                {/*    <div className='bordered'>*/}
+                {/*        <div className={`sidebar ${rightOpen}`}>*/}
+                {/*            <div className='header'>*/}
+                {/*                <h2 className='titleRight'>*/}
+                {/*                    Commands*/}
+                {/*                </h2>*/}
+                {/*            </div>*/}
+                {/*            <div className='leftContent'>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <h3 className='item'>*/}
+                {/*                        Analytical Commands*/}
+                {/*                    </h3>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Count*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Average*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Cross*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Compare*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <h3 className='item'>*/}
+                {/*                        Selection Commands*/}
+                {/*                    </h3>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Breakout By*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*                <div className='header'>*/}
+                {/*                    <p className='item'>*/}
+                {/*                        Where / Filter*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*            </div>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*</div>*/}
 
             </div>
         </div>
