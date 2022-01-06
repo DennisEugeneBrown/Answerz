@@ -1,22 +1,21 @@
-import React, {useEffect, useState, useReducer} from 'react';
-import Popup from 'reactjs-popup';
+import './App.css';
 import 'reactjs-popup/dist/index.css';
 import spinner from './spinner.svg';
-import './App.css';
+import React, {useEffect, useState, useReducer} from 'react';
 import 'react-minimal-side-navigation/lib/ReactMinimalSideNavigation.css';
 import {Container, Row, Col} from 'react-grid-system';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
-import {JsonToTable} from "react-json-to-table";
 import ReactVoiceInput from 'react-voice-input';
-import {CopyBlock, dracula} from "react-code-blocks";
+import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import {Chart} from "react-google-charts";
 import {DataGrid} from '@mui/x-data-grid';
 import Button from '@mui/material/Button';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import Select from '@mui/material/Select';
 import ReactCodeSnippet from 'react-code-snippet'
-import Input from '@mui/material/Input';
 import {CSVReader} from 'react-papaparse'
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
@@ -67,6 +66,15 @@ function App() {
         leftOpen: false,
         rightOpen: false,
     });
+    const [childModalOpen, setChildModalOpen] = React.useState(false);
+    const handleChildModalOpen = () => {
+        setChildModalOpen(true);
+    };
+    const handleChildModalClose = () => {
+        setChildModalOpen(false);
+    };
+
+    const [weight, setWeight] = React.useState('');
 
     const [getPrevQuery, setPrevQuery] = useState('')
     const versionNumber = '2.0.28'
@@ -96,6 +104,9 @@ function App() {
     // let rows = []
     // let cols = []
 
+    const handleWeightChange = event => {
+        setWeight(event.target.value);
+    }
     const handleSubmit = event => {
         event.preventDefault();
         submit(getInputState);
@@ -619,14 +630,6 @@ function App() {
                                                     <div className='PropertiesField'>
                                                         <label>{getTable.data.query}</label>
                                                     </div>
-                                                    {/*<TextField*/}
-                                                    {/*    label="Command"*/}
-                                                    {/*    defaultValue={getTable.data.query}*/}
-                                                    {/*    variant="standard"*/}
-                                                    {/*    inputProps={*/}
-                                                    {/*        {readOnly: true,}*/}
-                                                    {/*    }*/}
-                                                    {/*/>*/}
                                                     <div className='PropertiesLabel'>
                                                         <label>SQL</label>
                                                     </div>
@@ -634,31 +637,45 @@ function App() {
                                                         <ReactCodeSnippet lang="sql"
                                                                           code={getTable.data.queries[0].toUpperCase()}/>
                                                     </div>
-                                                    <div className='PropertiesLabel'>
-                                                        <label>Columns</label>
-                                                    </div>
+                                                    {/*<div className='PropertiesLabel'>*/}
+                                                    {/*    <label>Columns</label>*/}
+                                                    {/*</div>*/}
+                                                    {/*<div className='PropertiesField'>*/}
+                                                    {/*    {Object.keys(getTable.data.tables[0].rows[0]).map(val => {*/}
+                                                    {/*        if (['id', 'Header', 'None'].includes(val))*/}
+                                                    {/*            return;*/}
+                                                    {/*        return (*/}
+                                                    {/*            <div><TextField*/}
+                                                    {/*                // defaultValue={getTable.data.tables[0].chart_data[0][1]}*/}
+                                                    {/*                defaultValue={val}*/}
+                                                    {/*                variant="standard"/></div>);*/}
+                                                    {/*    })}*/}
+                                                    {/*</div>*/}
                                                     <div className='PropertiesField'>
-                                                        {Object.keys(getTable.data.tables[0].rows[0]).map(val => {
-                                                            if (['id', 'Header', 'None'].includes(val))
-                                                                return;
-                                                            return (
-                                                                <div><TextField
-                                                                    // defaultValue={getTable.data.tables[0].chart_data[0][1]}
-                                                                    defaultValue={val}
-                                                                    variant="standard"/></div>);
-                                                        })}
+                                                        <TextField
+                                                            label="Rows"
+                                                            defaultValue={getTable.data.rows}
+                                                            variant="standard"
+                                                        />
                                                     </div>
-                                                    <div className='PropertiesLabel'>
-                                                        <label>Rows</label>
-                                                    </div>
+                                                    {/*<div className='PropertiesLabel'>*/}
+                                                    {/*    <label>Rows</label>*/}
+                                                    {/*</div>*/}
+                                                    {/*<div className='PropertiesField'>*/}
+                                                    {/*    {getTable.data.tables[0].rows.map(row => {*/}
+                                                    {/*        return (*/}
+                                                    {/*            <div><TextField*/}
+                                                    {/*                // defaultValue={getTable.data.tables[0].chart_data[0][1]}*/}
+                                                    {/*                defaultValue={row['Header']}*/}
+                                                    {/*                variant="standard"/></div>);*/}
+                                                    {/*    })}*/}
+                                                    {/*</div>*/}
                                                     <div className='PropertiesField'>
-                                                        {getTable.data.tables[0].rows.map(row => {
-                                                            return (
-                                                                <div><TextField
-                                                                    // defaultValue={getTable.data.tables[0].chart_data[0][1]}
-                                                                    defaultValue={row['Header']}
-                                                                    variant="standard"/></div>);
-                                                        })}
+                                                        <TextField
+                                                            label="Columns"
+                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
+                                                            variant="standard"
+                                                        />
                                                     </div>
                                                     <div className='PropertiesField'>
                                                         <TextField
@@ -669,7 +686,7 @@ function App() {
                                                     </div>
                                                     <div className='PropertiesField'>
                                                         <TextField
-                                                            label="Filters"
+                                                            label="Active Filters"
                                                             defaultValue={getTable.data.conditions}
                                                             variant="standard"
                                                         />
@@ -689,49 +706,108 @@ function App() {
                                                     <div className='PropertiesField'>
                                                         <TextField
                                                             label="X-Axis Label"
-                                                            defaultValue={getTable.data.conditions}
+                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
                                                             variant="standard"
                                                         />
                                                     </div>
                                                     <div className='PropertiesField'>
                                                         <TextField
                                                             label="Y-Axis Label"
+                                                            defaultValue="Calls Count"
                                                             variant="standard"
                                                         />
                                                     </div>
+                                                    <div>
+                                                        <FormControl>
+                                                            <InputLabel>Weight</InputLabel>
+                                                            <Select
+                                                                label="Weight"
+                                                                value={weight}
+                                                                onChange={handleWeightChange}
+                                                                autoWidth
+                                                            >
+                                                                <MenuItem value="Thin">Thin</MenuItem>
+                                                                <MenuItem value="Medium">Medium</MenuItem>
+                                                                <MenuItem value="Thick">Thick</MenuItem>
+                                                            </Select>
+                                                        </FormControl>
+                                                    </div>
+                                                    <div className='PropertiesCheckBox'>
+                                                        Show Values in Labels
+                                                        <Checkbox label={label} defaultUnchecked/>
+                                                    </div>
+                                                    <div className='PropertiesCheckBox'>
+                                                        Show Percents in Labels
+                                                        <Checkbox label={label} defaultUnchecked/>
+                                                    </div>
+                                                    <div className='PropertiesCheckBox'>
+                                                        Exclude Final Period
+                                                        <Checkbox label={label} defaultUnchecked/>
+                                                    </div>
+                                                    <div className='PropertiesCheckBox'>
+                                                        Exclude Totals
+                                                        <Checkbox label={label} defaultUnchecked/>
+                                                    </div>
                                                 </div>
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Column*/}
-                                                {/*    Totals at*/}
-                                                {/*    Top*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Row Totals*/}
-                                                {/*    on*/}
-                                                {/*    Left*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Row Totals*/}
-                                                {/*    at*/}
-                                                {/*    Right*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
-                                                {/*    Row*/}
-                                                {/*    Totals*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
-                                                {/*    Column*/}
-                                                {/*    Totals*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Percent of*/}
-                                                {/*    All*/}
-                                                {/*</div>*/}
-                                                {/*<div>*/}
-                                                {/*    <Checkbox label={label} defaultUnchecked/> Show Counts*/}
-                                                {/*</div>*/}
+                                                <React.Fragment>
+                                                    <Typography id="modal-modal-title" variant="h6" component="h3"
+                                                                textAlign={'center'}>
+                                                        <Button variant="outlined" onClick={handleChildModalOpen}>Actions</Button>
+                                                    </Typography>
+                                                    <Modal
+                                                        hideBackdrop
+                                                        open={childModalOpen}
+                                                        onClose={handleChildModalClose}
+                                                        aria-labelledby="child-modal-title"
+                                                        aria-describedby="child-modal-description"
+                                                    >
+                                                        <Box sx={{...style, width: 200}}>
+                                                            <div>
+                                                                <div>
+                                                                    <Button variant="contained">Add/Remove Bars</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Highlight
+                                                                        Element</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Format</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Color</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Reference Line</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Reference Band</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Filters</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">SPRT</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Save</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Share</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Transpose</Button>
+                                                                </div>
+                                                                <div>
+                                                                    <Button variant="contained">Embed Image</Button>
+                                                                </div>
+                                                                <Button onClick={handleChildModalClose}
+                                                                        variant="contained">OK</Button>
+                                                                <Button onClick={handleChildModalClose}
+                                                                        variant="contained">Quit</Button>
+                                                            </div>
+                                                        </Box>
+                                                    </Modal>
+                                                </React.Fragment>
                                             </Box>
                                         </Modal>
                                     </div>

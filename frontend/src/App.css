@@ -13,6 +13,12 @@
     overflow: no-content;
 }
 
+.PropertiesCheckBox{
+    margin-top: 0.5vw;
+    font-size: medium;
+    overflow: no-content;
+}
+
 .PropertiesLabel {
     margin-bottom: 0.5vw;
     font-size: small;
@@ -28,11 +34,12 @@
 
 .App-header {
     background-color: #ffffff;
-    min-height: 100vh;
-    /*height: 100%;*/
+    min-height: 200vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    vertical-align: top;
     justify-content: center;
     /*font-size: calc(10px + 2vmin);*/
     color: black;

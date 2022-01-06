@@ -114,6 +114,7 @@ class Answerz(Resource):
                      "totals_table": totals_table,
                      "distinct_values": distinct_values,
                      "distinct_values_table": distinct_values_table,
-                     'follow_up': follow_up,
-                     'conditions': ', '.join([qbr.renderConditionsInQuery(q) for q in out_qs])}
+                     "follow_up": follow_up,
+                     "rows": ', '.join([condition[1] for q in qs for condition in q.conditions]),
+                     "conditions": ', '.join([qbr.renderConditionsInQuery(q) for q in out_qs])}
         return final_ret
