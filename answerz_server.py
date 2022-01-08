@@ -167,11 +167,9 @@ class QueryBlock:
     def getAllSelects(self):
         # the order here is intentionally backwards. we pre-end the select
         # This is a way to ensure the array is COPIED and not REFERENCED. as we will be modifying the array
-        allSelects = [group for group in self.groups[:] if
-                      group[0] not in self.groups_to_skip and group not in self.selects]
-        allSelects.extend(
-            [select for select in self.selects if select[0] not in self.groups_to_skip])
-
+        allSelects = []
+        allSelects.extend([group for group in self.groups[:] if
+                           group[0] not in self.groups_to_skip and group not in self.selects])
         if self.conditions_by_type:
             pivot_condition_type = list(self.conditions_by_type.keys())[-1]
             pivot_conditions_count = len(self.conditions_by_type[pivot_condition_type])
@@ -188,6 +186,8 @@ class QueryBlock:
                     allSelects.extend(other_condition_selects)
                 if pivot_conditions_count > 1:
                     allSelects.append(self.generateConditionalCountSelect({pivot_condition_type: [condition]}))
+        allSelects.extend(
+            [select for select in self.selects if select[0] not in self.groups_to_skip])
 
         return allSelects
 
@@ -1101,18 +1101,17 @@ class ColumnEntityDecoder(EntityDecoderBase):
     # Takes the entity to decode + a potential query_block to augment
     def decode(self, entity, query_block, comparator=None, string_operators=None):
         # print(entity)
-        if 'resolution' in entity:
-            if 'values' in entity['resolution']:
-                values = entity["resolution"]["values"]
-            else:
-                values = [entity['resolution']['value']]
-        else:
-            values = [entity['entity']]
+        values = [entity['entity']]
+        if isinstance(entity['entity'], dict) and 'values' in entity['entity'] and 'resolution' in \
+                entity['entity']['values'][0]:
+            values = entity['entity']['values'][0]["resolution"]
 
         if (len(values) == 1):
 
             entity_name = entity["type"]
-            entity_value = values[0]['value'] if isinstance(values[0], dict) else values[0]
+            value = values[0] if isinstance(values, list) else values
+            entity_value = (value['value'] if 'value' in value else value['resolution'][0][
+                'value']) if isinstance(value, dict) else value
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -1144,11 +1143,11 @@ class ColumnEntityDecoder(EntityDecoderBase):
             choice_for_field = {}
             if lu and 'exact_match' in lu and lu['exact_match'] is False:
                 exact_match = False
-                if 'choice' in lu:
-                    if "." in field_name:  # already scoped
-                        choice_for_field[lu['field']] = lu['choice']
-                    else:
-                        choice_for_field[lu['tables'][0] + '.' + lu['field']] = lu['choice']
+                choice = lu['choice'] if 'choice' in lu else False
+                if "." in field_name:  # already scoped
+                    choice_for_field[lu['field']] = choice
+                else:
+                    choice_for_field[lu['tables'][0] + '.' + lu['field']] = choice
 
             qb = QueryBlock(query_block.queryIntent)
 
@@ -1258,11 +1257,11 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             choice_for_field = {}
             if 'exact_match' in lu and lu['exact_match'] == False:
                 exact_match = False
-                if 'choice' in lu:
-                    if "." in field_name:  # already scoped
-                        choice_for_field[lu['field'][entity['entity']]] = lu['choice']
-                    else:
-                        choice_for_field[lu['tables'][0] + '.' + lu['field'][entity['entity']]] = lu['choice']
+                choice = lu['choice'] if 'choice' in lu else False
+                if "." in field_name:  # already scoped
+                    choice_for_field[lu['field'][entity['entity']]] = choice
+                else:
+                    choice_for_field[lu['tables'][0] + '.' + lu['field'][entity['entity']]] = choice
 
             qb = QueryBlock(query_block.queryIntent)
             qb.logical_label = True
@@ -1456,6 +1455,9 @@ class LuisIntentProcessor:
             'State': 'state',
             'builtin.geographyV2.city': 'city',
             'City': 'city',
+            'county': 'county',
+            'state': 'state',
+            'city': 'city',
         }
         self.geography_entity_types = ['geographyV2', 'County', 'City', 'State']
         self.date_entity_types = ['datetimeV2', 'builtin.datetimeV2',
@@ -1649,7 +1651,7 @@ class LuisIntentProcessor:
                     ix_to_length[start_index] = entity['length']
 
         for entity_type, list_to_remove in to_remove.items():
-            for ix in reversed(sorted(list_to_remove)):
+            for ix in reversed(sorted(list(set(list_to_remove)))):
                 del entities[entity_type][ix]
 
         return entities
@@ -1681,6 +1683,7 @@ class LuisIntentProcessor:
                 else:
                     geo_ents.append((entity, entity_type))
                     geo_by_type[self.geo_transformations[entity['type']]].append(entity['text'])
+                    entity['type'] = self.geo_transformations[entity['type']].title()
             elif entity_type in self.geography_entity_types and entity_type in entities:
                 entities[entity_type].remove(entity)
         return entities, geo_ents, geo_by_type
@@ -1987,15 +1990,16 @@ class AnswerzProcessor():
 
                 distinct_values_table_cols = [
                     {'field': key, 'headerName': '', 'flex': 1 if key == 'name' else 0.3} for key in
-                    list(distinct_values_table[0]['Output'][0].keys())] if distinct_values_table and len(
-                    distinct_values_table[0]['Output']) > 1 else []
+                    list(distinct_values_table[0]['OldOutput'][0].keys())] if distinct_values_table and len(
+                    distinct_values_table[0]['OldOutput']) > 1 else []
 
                 distinct_values_table_rows = [{'id': ix + 1, 'value': self.generate_text_query(pq, row), **row} for
                                               ix, row
                                               in
                                               enumerate(
-                                                  distinct_values_table[0]['Output'])] if distinct_values_table and len(
-                    distinct_values_table[0]['Output']) > 1 else []
+                                                  distinct_values_table[0][
+                                                      'OldOutput'])] if distinct_values_table and len(
+                    distinct_values_table[0]['OldOutput']) > 1 else []
 
                 results.append({'result': result,
                                 'sql': sql,

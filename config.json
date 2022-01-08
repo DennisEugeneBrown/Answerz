@@ -112,6 +112,8 @@
           "type": "int",
           "name": "ZipCode",
           "field": "ZipCode",
+          "exact_match": false,
+          "choice": false,
           "joins": null
         },
         {
@@ -174,6 +176,8 @@
           "type": "string",
           "name": "ZipCode",
           "field": "ZipCode",
+          "exact_match": false,
+          "choice": false,
           "joins": null
         },
         {
@@ -346,6 +350,8 @@
           "type": "string",
           "name": "ZipCode",
           "field": "ZipCode",
+          "exact_match": false,
+          "choice": false,
           "joins": null
         },
         {
