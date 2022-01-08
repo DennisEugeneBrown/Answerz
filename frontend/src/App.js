@@ -497,6 +497,7 @@ function App() {
                                                                         loader={<div>Loading Chart</div>}
                                                                         data={value.chart_data}
                                                                         options={{
+                                                                            isStacked: true,
                                                                             fontSize: 36,
                                                                             titleTextStyle: {
                                                                                 fontSize: 32,

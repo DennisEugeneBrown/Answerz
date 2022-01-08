@@ -1,6 +1,7 @@
 import us
 import csv
 import copy
+import math
 import json
 import pyodbc
 import pprint
@@ -1836,9 +1837,12 @@ class QueryProcessor:
         for header in headers[1:]:
             header = header[1]
             transposed_row = {'Header': header}
+            total = 0
             for row in rows:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
+                total += float(str(row[header]).replace('%', ''))
+            transposed_row['totals'] = math.ceil(total)
             transposed_output.append(transposed_row)
         output = {'OldOutput': rows, 'Output': transposed_output}
         return output
