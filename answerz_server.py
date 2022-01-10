@@ -62,7 +62,7 @@ class DataMapRepo:
         print('Group Action: ', _groupAction)
         mapped_grouping = None
         for group in mapped_element["Groupings"]:
-            if (group["name"] == _groupAction):
+            if group["name"] == _groupAction:
                 mapped_grouping = group
                 break
         if not mapped_grouping:
@@ -70,7 +70,7 @@ class DataMapRepo:
                 if not "default" in group:
                     continue
 
-                if (group["default"] == True):
+                if group["default"] == True:
                     mapped_grouping = group
                     break
 
@@ -705,8 +705,11 @@ class AggregationByDescriptionIntentDecoder:
                     mapped_groupings = [mapped_grouping]
                     del entities[_logicalLabel_ix]
                 else:
-                    # mapped_groupings = data_map_repo.getAllGroupings(_element)
-                    pass
+                    _, mapped_grouping = data_map_repo.findGrouping(
+                        _element, 'Year')
+                    mapped_groupings.append(mapped_grouping)
+                    _groupAction = {'entity': 'group by'}
+                    default_grouping = True
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
         elif not _groupAction and not is_a_prev_query:
@@ -1751,60 +1754,6 @@ class LuisIntentProcessor:
             query = self.process_entity_list(entity_list, query, lst)
             queries.append(query)
 
-        # if len(geo_ents) > 1:
-        #     for geo_ent in geo_ents:
-        #         supp_entity_list = [ent for ent in entity_list_ if ent['type'] != '_ConditionSeparator'] + [geo_ent]
-        #         supp_entity_list, supp_query = intent_decoder.decode(
-        #             this_intent, supp_entity_list, prev_q=prev_q)
-        #         supp_query = self.process_entity_list(supp_entity_list, supp_query)
-        #         supplementary_queries.append(supp_query)
-
-        # else:
-        #     if this_intent == 'cross-by-field-name':
-        #         flat_entity_list = [entity for entity_type in entities for entity in entities[entity_type]]
-        #         entity_list, query = intent_decoder.decode(
-        #             this_intent, flat_entity_list, prev_q=prev_q)
-        #
-        #         field_names = findFieldNames(entity_list)
-        #         if len(field_names) < 2:
-        #             print('FATAL ERROR: Not enough fields for Cross')
-        #             return
-        #
-        #         field_name_1 = field_names[0]
-        #         field_name_2 = field_names[1]
-        #
-        #         values_1 = self.get_field_values(field_name_1, query.tables[0], query_processor)
-        #         values_1 = [value[field_name_1] for value in values_1['Output']]
-        #
-        #         values_2 = self.get_field_values(field_name_2, query.tables[0], query_processor)
-        #         values_2 = [value[field_name_2] for value in values_2['Output']]
-        #
-        #         for value_1 in values_1:
-        #             entity_list_ = copy.copy(entity_list)
-        #             query_ = copy.deepcopy(query)
-        #             entity_list_.append({'entity': value_1, 'type': field_name_1})
-        #             query_.conditions.append(['eq', '{}.{}'.format(query_.tables[0], field_name_1), value_1])
-        #             for value_2 in values_2:
-        #                 entity_list_.append({'entity': value_2, 'type': field_name_2})
-        #             query_.is_compare = True
-        #             query_ = self.process_entity_list(entity_list_, query_)
-        #             queries.append(query_)
-        #
-        #         union = True
-
-        # else:
-        #     flat_entity_list = [entity for entity_type in lst for entity in lst[entity_type]]
-        #     entity_list, query = intent_decoder.decode(
-        #         this_intent, flat_entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
-        #     query = self.process_entity_list(entity_list, query)
-        # grouping_fields = [field[0].lower() for field in query.groups]
-        # condition_fields = [cond[1].lower() for cond in query.conditions]
-        # for entity in entity_list:
-        #     if entity['type'] == '_FieldName' and entity['entity'].lower() not in grouping_fields and not any(
-        #             [cond_field for cond_field in condition_fields if entity['entity'].lower() in cond_field[1]]):
-        #         query.groups.append((entity['entity'], entity['entity']))
-        # queries.append(query)
-
         return queries, union, supplementary_queries
 
 
@@ -1812,10 +1761,10 @@ class QueryProcessor:
     def __init__(self, db_config):
         self.db_config = db_config
 
-    def generate_and_run_query(self, qb):
+    def generate_and_run_query(self, qb, distinct_values_query=False):
 
         sql = self.generate_query(qb)
-        output = self.run_query(sql, qb.getAllSelects())
+        output = self.run_query(sql, qb.getAllSelects(), distinct_values_query=distinct_values_query)
 
         return output, sql
 
@@ -1824,7 +1773,7 @@ class QueryProcessor:
         sql = qbr.render(qb)
         return sql
 
-    def run_query(self, sql, headers):
+    def run_query(self, sql, headers, distinct_values_query=False):
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
         result = msr.query(sql)
@@ -1836,19 +1785,26 @@ class QueryProcessor:
                 row_dictionary[col[1]] = row[col_index]
                 col_index = col_index + 1
             rows.append(row_dictionary)
+        if distinct_values_query:
+            return {'OldOutput': rows, 'Output': rows}
+        if len(rows) > 10:
+            totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows])) for _, header in
+                      headers[-2:]]
+            totals_row = {**{header: 'Total' for _, header in headers[:-2]},
+                          **{header: totals[ix] for ix, (_, header) in enumerate(headers[-2:])}}
+            return {'OldOutput': rows, 'Output': rows + [totals_row]}
         transposed_output = []
-        for header in headers[1:]:
-            header = header[1]
+        for _, header in headers[-2:]:
             transposed_row = {'Header': header}
             total = 0
             for row in rows:
+                # for _, new_header in headers[:-2]:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
                 total += float(str(row[header]).replace('%', ''))
-            transposed_row['totals'] = math.ceil(total)
+            transposed_row['totals'] = round(total)
             transposed_output.append(transposed_row)
-        output = {'OldOutput': rows, 'Output': transposed_output}
-        return output
+        return {'OldOutput': rows, 'Output': transposed_output}
 
     def test(self):
         # global mssql_server
@@ -1985,7 +1941,8 @@ class AnswerzProcessor():
                     totals_table[0]['Output'])] if totals_table and len(
                     totals_table[0]['Output']) > 1 else []
 
-                distinct_values_table = self.queryProcessor.generate_and_run_query(pq.distinct_values_query) \
+                distinct_values_table = self.queryProcessor.generate_and_run_query(pq.distinct_values_query,
+                                                                                   distinct_values_query=True) \
                     if pq.distinct_values_query else None
 
                 distinct_values_table_cols = [

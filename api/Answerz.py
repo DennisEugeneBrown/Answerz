@@ -47,7 +47,7 @@ class Answerz(Resource):
                 continue
             chart_data = []
             extra_rows_by_group = defaultdict(lambda: defaultdict(lambda: 0))
-            for group in qs[res_ix].groups:
+            for group in qs[res_ix].groups[0:1]:
                 if group[1] in qs[res_ix].groups_to_skip:
                     continue
                 col_1 = group[1]
