@@ -89,7 +89,7 @@ class DataMapRepo:
 
         mapped_aggregation = None
         for agg in mapped_element["Aggregations"]:
-            if (agg["name"] == _aggregation):
+            if agg["name"] == _aggregation:
                 mapped_aggregation = agg
                 break
 
@@ -133,6 +133,7 @@ class QueryBlock:
         self.logical_label = False
         self.condition_locs = {}
         self.conditions_by_type = {}
+        self.conditions_by_category = {}
         self.choice_for_field = {}
 
     def addTable(self, tableNames, join=None):
@@ -141,7 +142,7 @@ class QueryBlock:
         for tableName in tableNames:
             if join:
                 for join in self.joins:
-                    if (join[0] == tableName):
+                    if join[0] == tableName:
                         #
                         # Already have this join. Let's hope it doesnt conflict!
                         #
@@ -199,10 +200,18 @@ class QueryBlock:
             conditions_by_type[cond_type].extend(vals)
         return conditions_by_type
 
+    def merge_conditions_by_category(self, other_conditions):
+        conditions_by_category = defaultdict(list)
+        for cond_category, vals in self.conditions_by_category.items():
+            conditions_by_category[cond_category].extend(vals)
+        for cond_category, vals in other_conditions.items():
+            conditions_by_category[cond_category].extend(vals)
+        return conditions_by_category
+
     def merge(self, qb_other):
-        if (not qb_other):
+        if not qb_other:
             return False
-        if (qb_other.tables and qb_other.tables != self.tables):
+        if qb_other.tables and qb_other.tables != self.tables:
             print("Root table mismatch on Query Block merge")
             print(qb_other.tables)
             print(self.tables)
@@ -222,6 +231,7 @@ class QueryBlock:
         self.logical_label = qb_other.logical_label
         self.condition_locs = {**self.condition_locs, **qb_other.condition_locs}
         self.conditions_by_type = self.merge_conditions_by_type(qb_other.conditions_by_type)
+        self.conditions_by_category = self.merge_conditions_by_category(qb_other.conditions_by_category)
         self.choice_for_field = {**self.choice_for_field, **qb_other.choice_for_field}
         return True
 
@@ -292,11 +302,11 @@ class QueryBlockRenderer:
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
 
-        if (cond_sql):
+        if cond_sql:
             sql = sql + "\nWHERE " + cond_sql
 
         group_sql = self.renderGroups(qb)
-        if (group_sql):
+        if group_sql:
             sql = sql + "\nGROUP BY " + group_sql
 
         if qb.unions and len(qb.groups) < 2:
@@ -305,7 +315,7 @@ class QueryBlockRenderer:
             sql += ' UNION ' + qb2
 
         order_sql = self.renderSorts(qb)
-        if (order_sql):
+        if order_sql:
             sql = sql + "\nORDER BY " + order_sql
 
         if qb.unpivot_cols:
@@ -349,7 +359,7 @@ class QueryBlockRenderer:
             sql += table
             # if add_with_table:
             #     sql += ', total'
-            if (len(qb.joins)):
+            if len(qb.joins):
                 for join in set([tuple(join) for join in qb.joins]):
                     if table in join[1].split('.'):
                         sql = sql + "\n\tJOIN " + join[0] + " ON " + join[1]
@@ -384,7 +394,8 @@ class QueryBlockRenderer:
         return sql
 
     def renderConditionsInQuery(self, qb):
-        return self.renderConditions(qb.conditions_by_type)
+        # return self.renderConditions(qb.conditions_by_type)
+        return self.renderConditions(qb.conditions_by_category)
 
     def renderConditions(self, conditions):
         sql = ""
@@ -399,19 +410,19 @@ class QueryBlockRenderer:
         def encodeCondition(cond):
             op, lhs, rhs = cond
 
-            if (op == "eq"):
+            if op == "eq":
                 return encodeLHS(lhs) + " = " + encodeRHS(rhs)
-            if (op == "lk"):
+            if op == "lk":
                 return encodeLHS(lhs) + " like " + encodeRHS(rhs)
-            if (op == "lt"):
+            if op == "lt":
                 return encodeLHS(lhs) + " < " + encodeRHS(rhs)
-            if (op == "lte"):
+            if op == "lte":
                 return encodeLHS(lhs) + " <= " + encodeRHS(rhs)
-            if (op == "gt"):
+            if op == "gt":
                 return encodeLHS(lhs) + " > " + encodeRHS(rhs)
-            if (op == "gte"):
+            if op == "gte":
                 return encodeLHS(lhs) + " >= " + encodeRHS(rhs)
-            if (op == "not"):
+            if op == "not":
                 return encodeLHS(lhs) + " != " + encodeRHS(rhs)
             return op
 
@@ -454,17 +465,17 @@ class QueryBlockRenderer:
                 for cond_ in cond:
                     op, lhs, rhs = cond_
                     encoded_op = " = "
-                    if (op == "eq"):
+                    if op == "eq":
                         encoded_op = " = "
-                    if (op == "lk"):
+                    if op == "lk":
                         encoded_op = " like "
-                    if (op == "lt"):
+                    if op == "lt":
                         encoded_op = " < "
-                    if (op == "lte"):
+                    if op == "lte":
                         encoded_op = " <= "
-                    if (op == "gt"):
+                    if op == "gt":
                         encoded_op = " > "
-                    if (op == "gte"):
+                    if op == "gte":
                         encoded_op = " >= "
                     conds.append([lhs, rhs, encoded_op])
                 encodeSelect(conds[0][0], conds[0][1], agg, conds[0][2], and_=[conds[1][0], conds[1][1], conds[1][2]])
@@ -472,17 +483,17 @@ class QueryBlockRenderer:
             else:
                 op, lhs, rhs = cond
                 encoded_op = " = "
-                if (op == "eq"):
+                if op == "eq":
                     encoded_op = " = "
-                if (op == "lk"):
+                if op == "lk":
                     encoded_op = " like "
-                if (op == "lt"):
+                if op == "lt":
                     encoded_op = " < "
-                if (op == "lte"):
+                if op == "lte":
                     encoded_op = " <= "
-                if (op == "gt"):
+                if op == "gt":
                     encoded_op = " > "
-                if (op == "gte"):
+                if op == "gte":
                     encoded_op = " >= "
                 encodeSelect(lhs, rhs, agg, encoded_op)
 
@@ -503,7 +514,7 @@ class QueryBlockRenderer:
         return selects
 
 
-class QueryTestBlocks():
+class QueryTestBlocks:
     # This is defined as a class level function not an instance level function. its a way to manage globals
     def simple_count(self):
         qb = QueryBlock()
@@ -577,13 +588,13 @@ class AggregationByDescriptionIntentDecoder:
         return -1, None
 
     def findFieldNames(self, entities):
-        fieldNames = []
-        fieldName_entities = []
+        field_names = []
+        field_name_entities = []
         for e in entities:
-            if (e["type"] == '_FieldName'):
-                fieldNames.append(e['entity'])
-                fieldName_entities.append(e)
-        return fieldNames, fieldName_entities
+            if e["type"] == '_FieldName':
+                field_names.append(e['entity'])
+                field_name_entities.append(e)
+        return field_names, field_name_entities
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
 
@@ -599,11 +610,11 @@ class AggregationByDescriptionIntentDecoder:
                                                                              return_entity=True)
         _stringOperator_ix, _stringOperator = self.findEntityByType(entities, "_StringOperators")
 
-        _fieldNames, _fieldName_entities = self.findFieldNames(entities)
+        _field_names, _field_name_entities = self.findFieldNames(entities)
 
         # priority for fieldnames always
 
-        for _fieldName in _fieldName_entities:
+        for _fieldName in _field_name_entities:
             start_index = _fieldName['startIndex']
             end_index = _fieldName['startIndex'] + _fieldName['length']
             ixs_to_remove = []
@@ -622,7 +633,7 @@ class AggregationByDescriptionIntentDecoder:
             _element, _aggregation)
 
         numbers = []
-        for ix, field_name in enumerate(_fieldNames):
+        for ix, field_name in enumerate(_field_names):
             for dim in mapped_element["Dimensions"]:
                 if dim["name"].lower() == field_name.lower() and dim['type'] == 'int':
                     numbers.append((dim["name"], ix))
@@ -636,7 +647,7 @@ class AggregationByDescriptionIntentDecoder:
             # TODO: Improve numbers by looking at comparators rather than just distance
             for number, num_entity_ix in numbers:
                 for ix, entity in enumerate(entities):
-                    _fieldName_entity = _fieldName_entities[num_entity_ix]
+                    _fieldName_entity = _field_name_entities[num_entity_ix]
                     if entity['type'] == 'builtin.number' and (
                             abs((_fieldName_entity['startIndex'] + _fieldName_entity['length']) - entity[
                                 'startIndex']) <= 3):
@@ -694,9 +705,9 @@ class AggregationByDescriptionIntentDecoder:
         default_grouping = False
         if _groupAction and not is_a_prev_query:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by', 'by', 'grouped by']:
-                if _fieldNames:
-                    for ix, _fieldName in enumerate(_fieldNames):
-                        if _fieldName_entities[ix]['startIndex'] > _groupAction['startIndex']:
+                if _field_names:
+                    for ix, _fieldName in enumerate(_field_names):
+                        if _field_name_entities[ix]['startIndex'] > _groupAction['startIndex']:
                             _, mapped_grouping = data_map_repo.findGrouping(_element, _fieldName)
                             mapped_groupings.append(mapped_grouping)
                             # break
@@ -720,16 +731,16 @@ class AggregationByDescriptionIntentDecoder:
             default_grouping = True
 
         for table in mapped_aggregation["tables"]:
-            if (type(table) == str):
+            if type(table) == str:
                 qb.addTable(table)
             else:
                 qb.addTable(table[0], table[1])
 
         for col in mapped_aggregation["columns"]:
-            if ("type" in col and col["type"] == "agg"):
-                if (col["agg"] == "count"):
-                    if ("field" in col and col["field"]):
-                        if (col["distinct"]):
+            if "type" in col and col["type"] == "agg":
+                if col["agg"] == "count":
+                    if "field" in col and col["field"]:
+                        if col["distinct"]:
                             qb.selects.append(["Count(distinct dbo.{}.{})".format(
                                 qb.tables[0], col["field"]), qb.queryIntent[0]])
                         else:
@@ -741,7 +752,7 @@ class AggregationByDescriptionIntentDecoder:
                         qb.with_query = with_qb
                     else:
                         qb.selects.append(["Count()", "Count"])
-                elif (col['agg'] == 'avg'):
+                elif col['agg'] == 'avg':
                     if "field" in col and col["field"]:
                         if 'cast' in col and col['cast']:
                             field = "CAST({}dbo.{}.{} AS {})".format('distinct ' if col['distinct'] else '',
@@ -755,7 +766,7 @@ class AggregationByDescriptionIntentDecoder:
 
         if _groupAction:
             if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
-                    _fieldNames or _logicalLabel or default_grouping):
+                    _field_names or _logicalLabel or default_grouping):
                 for mapped_grouping in mapped_groupings:
                     if mapped_grouping['joins']:
                         qb.joins.extend(tuple(mapped_grouping['joins']))
@@ -778,25 +789,13 @@ class AggregationByDescriptionIntentDecoder:
                     "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                         count=qb.selects[0][0]),
                     'Percentage'])
-                # qb2 = QueryBlock()
-                # qb2.selects = [["'Total'", qb.groups[0][1]],
-                #                ['sum({}) over ()'.format(qb.selects[0][0]), qb.selects[0][1]],
-                #                ["'100%'", qb.selects[1][1]]]
-                #
-                # qb2.queryIntent = qb.queryIntent
-                # qb2.tables = qb.tables
-                # qb.unions.append(qb2)
-        # else:
-
-        # qb.addTable("CallLog")
-
         return entities, qb
 
 
 def findFieldNames(entities):
     fieldNames = []
     for e in entities:
-        if (e["type"] == '_FieldName'):
+        if e["type"] == '_FieldName':
             fieldNames.append(e['entity'])
     return fieldNames
 
@@ -816,7 +815,7 @@ class CrossByFieldNameIntentDecoder:
     def findFieldNames(self, entities):
         fieldNames = []
         for e in entities:
-            if (e["type"] == '_FieldName'):
+            if e["type"] == '_FieldName':
                 fieldNames.append(e['entity'])
         return fieldNames
 
@@ -847,7 +846,7 @@ class CrossByFieldNameIntentDecoder:
         qb.is_cross = True
 
         for table in mapped_aggregation["tables"]:
-            if (type(table) == str):
+            if type(table) == str:
                 qb.addTable(table)
             else:
                 qb.addTable(table[0], table[1])
@@ -897,16 +896,16 @@ class AggregationByLogicalYesDecoder:
 
         qb = QueryBlock((_element, _aggregation))
         for table in mapped_aggregation["tables"]:
-            if (type(table) == str):
+            if type(table) == str:
                 qb.addTable(table)
             else:
                 qb.addTable(table[0], table[1])
 
         for col in mapped_aggregation["columns"]:
-            if ("type" in col and col["type"] == "agg"):
-                if (col["agg"] == "count"):
-                    if ("field" in col and col["field"]):
-                        if (col["distinct"]):
+            if "type" in col and col["type"] == "agg":
+                if col["agg"] == "count":
+                    if "field" in col and col["field"]:
+                        if col["distinct"]:
                             qb.selects.append(["Count(distinct {})".format(
                                 col["field"]), qb.queryIntent[0]])
                         else:
@@ -946,7 +945,7 @@ class BreakdownByIntentDecoder:
         fieldNames = []
         fieldName_entities = []
         for e in entities:
-            if (e["type"] == '_FieldName'):
+            if e["type"] == '_FieldName':
                 fieldNames.append(e['entity'])
                 fieldName_entities.append(e)
         return fieldNames, fieldName_entities
@@ -1065,7 +1064,7 @@ class EntityDecoderBase:
             _element, _aggregation)
         # print('LOOKING FOR {}'.format(entity_name))
         for dim in mapped_element["Dimensions"]:
-            if (dim["name"] == entity_name):
+            if dim["name"] == entity_name:
                 tables = mapped_aggregation["tables"]
                 # No handling yet for additional table requirements on field
 
@@ -1082,7 +1081,7 @@ class EntityDecoderBase:
         mapped_element, mapped_aggregation = data_map_repo.findMapping(
             _element, _aggregation)
         for dim in mapped_element["Dimensions"]:
-            if (dim["type"] == entity_type):
+            if dim["type"] == entity_type:
                 tables = mapped_aggregation["tables"]
                 # No handling yet for additional table requirements on field
 
@@ -1109,7 +1108,7 @@ class ColumnEntityDecoder(EntityDecoderBase):
                 entity['entity']['values'][0]:
             values = entity['entity']['values'][0]["resolution"]
 
-        if (len(values) == 1):
+        if len(values) == 1:
 
             entity_name = entity["type"]
             value = values[0] if isinstance(values, list) else values
@@ -1197,6 +1196,14 @@ class ColumnEntityDecoder(EntityDecoderBase):
                     else:
                         qb.conditions_by_type[entity['type']] = [condition]
 
+                    if 'category' not in lu:
+                        lu['category'] = entity['type']
+
+                    if lu['category'] in qb.conditions_by_category:
+                        qb.conditions_by_category[lu['category']].append(condition)
+                    else:
+                        qb.conditions_by_category[lu['category']] = [condition]
+
                     if "joins" in lu and lu["joins"]:
                         for join in lu["joins"]:
                             qb.addTable(join[0], join[1])
@@ -1232,7 +1239,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
         else:
             values = [entity]
 
-        if (len(values) == 1):
+        if len(values) == 1:
 
             entity_name = entity["type"]
             if 'resolution' in entity:
@@ -1271,14 +1278,14 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
             qb.choice_for_field = choice_for_field
 
             for table in tables:
-                if (type(table) == str):
+                if type(table) == str:
                     qb.addTable(table)
                 else:
                     # note: this is not yet tested and may break
                     qb.addTable(table[0], table[1])
 
             db_values = self.mapValues(tables[0], field_name, entity_value)
-            if (len(db_values) == 1):
+            if len(db_values) == 1:
                 if string_operators:
                     if "." in field_name:  # already scoped
                         condition = [(string_operators[0].format(field_name, entity_value)), '', '']
@@ -1301,7 +1308,15 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 else:
                     qb.conditions_by_type[lu['field'][entity['entity']]] = [condition]
 
-                if ("joins" in lu and lu["joins"]):
+                if 'category' not in lu:
+                    lu['category'] = entity['type']
+
+                if lu['category'] in qb.conditions_by_category:
+                    qb.conditions_by_category[lu['category']].append(condition)
+                else:
+                    qb.conditions_by_category[lu['category']] = [condition]
+
+                if "joins" in lu and lu["joins"]:
                     for join in lu["joins"]:
                         qb.addTable(join[0], join[1])
 
@@ -1328,7 +1343,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
     def decode(self, entity, query_block=None, comparator=None, string_operators=None):
         value = entity['entity']
 
-        if (value["type"] == "daterange"):
+        if value["type"] == "daterange":
 
             entity_type = "datetime"
             entity_value = value['values'][0]['resolution'][0]
@@ -1356,6 +1371,15 @@ class DateRangeEntityDecoder(EntityDecoderBase):
                     qb.conditions_by_type[entity['type'] + 'Start'].append(condition)
                 else:
                     qb.conditions_by_type[entity['type'] + 'Start'] = [condition]
+
+                if 'category' not in lu:
+                    lu['category'] = entity['type']
+
+                if lu['category'] in qb.conditions_by_category:
+                    qb.conditions_by_category[lu['category'] + 'Start'].append(condition)
+                else:
+                    qb.conditions_by_category[lu['category'] + 'Start'] = [condition]
+
             if "end" in entity_value:
                 condition = ["lt", field_name, entity_value["end"]]
                 qb.conditions.append(condition)
@@ -1363,6 +1387,14 @@ class DateRangeEntityDecoder(EntityDecoderBase):
                     qb.conditions_by_type[entity['type'] + 'End'].append(condition)
                 else:
                     qb.conditions_by_type[entity['type'] + 'End'] = [condition]
+
+                if 'category' not in lu:
+                    lu['category'] = entity['type']
+
+                if lu['category'] in qb.conditions_by_category:
+                    qb.conditions_by_category[lu['category'] + 'End'].append(condition)
+                else:
+                    qb.conditions_by_category[lu['category'] + 'End'] = [condition]
             else:
                 condition = ["lt", field_name, datetime.now().strftime('%Y-%m-%d')]
                 qb.conditions.append(condition)
@@ -1370,6 +1402,14 @@ class DateRangeEntityDecoder(EntityDecoderBase):
                     qb.conditions_by_type[entity['type']].append(condition)
                 else:
                     qb.conditions_by_type[entity['type']] = [condition]
+
+                if 'category' not in lu:
+                    lu['category'] = entity['type']
+
+                if lu['category'] in qb.conditions_by_category:
+                    qb.conditions_by_category[lu['category']].append(condition)
+                else:
+                    qb.conditions_by_category[lu['category']] = [condition]
 
             if "joins" in lu and lu["joins"]:
                 for join in lu["joins"]:
@@ -1388,10 +1428,10 @@ class DateEntityDecoder(EntityDecoderBase):
     def decode(self, entity, query_block=None, comparator=None, string_operators=None):
         values = entity["resolution"]["values"]
 
-        if (len(values) == 1):
+        if len(values) == 1:
 
             value = values[0]
-            if (value["type"] == "date"):
+            if value["type"] == "date":
 
                 entity_type = "datetime"
                 entity_value = entity['entity']
@@ -1418,7 +1458,7 @@ class DateEntityDecoder(EntityDecoderBase):
                     qb.conditions.append(
                         ["lt", field_name, datetime.now().strftime('%Y-%m-%d')])
 
-                if ("joins" in lu and lu["joins"]):
+                if "joins" in lu and lu["joins"]:
                     for join in lu["joins"]:
                         qb.addTable(join[0], join[1])
 
@@ -1469,7 +1509,7 @@ class LuisIntentProcessor:
 
     def get_intent_decoder(self, intent_name):
 
-        if (intent_name in self.i_decoders):
+        if intent_name in self.i_decoders:
             return self.i_decoders[intent_name]
 
         return None
@@ -1480,10 +1520,10 @@ class LuisIntentProcessor:
     def get_entity_decoder(self, entity):
 
         t = entity["type"]
-        if (t in self.e_decoders):
+        if t in self.e_decoders:
             return self.e_decoders[t]
 
-        if (t.startswith("_")):
+        if t.startswith("_"):
             # this is a system field
             return None
 
@@ -1827,7 +1867,7 @@ class QueryProcessor:
         print(self.generate_and_run_query(qb))
 
 
-class AnswerzProcessor():
+class AnswerzProcessor:
     def __init__(self, data_map, db_config, luis_config):
         self.intentProcessor = LuisIntentProcessor(data_map)
         self.queryProcessor = QueryProcessor(db_config)
@@ -1895,7 +1935,7 @@ class AnswerzProcessor():
             prev_query = prev_query[0]
         pqs, union, supp_queries = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         if pqs:
-            self.update_prev_query(pqs[0])  # TODO: fix bug here
+            self.update_prev_query(pqs[0])
         results = []
         qbr = QueryBlockRenderer()
         supp_tables = []
@@ -1922,7 +1962,6 @@ class AnswerzProcessor():
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
 
-                # col = qbr.renderConditions(pq) or 'Calls'
                 conds = qbr.renderConditionsInQuery(pq)
                 if conds and len(conds) <= 128:
                     col = conds

@@ -143,6 +143,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "display_name": "City",
           "field": "City",
           "joins": null
@@ -152,6 +153,7 @@
           "type": "string",
           "display_name": "County",
           "name": "County",
+          "category": "geography",
           "field": "County",
           "joins": null
         },
@@ -161,6 +163,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": null
         },
         {
@@ -169,6 +172,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": null
         },
         {
@@ -318,6 +322,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "display_name": "City",
           "field": "City",
           "joins": null
@@ -326,6 +331,7 @@
           "class": "field",
           "type": "string",
           "name": "County",
+          "category": "geography",
           "field": "County",
           "joins": null
         },
@@ -335,6 +341,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": null
         },
         {
@@ -343,6 +350,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": null
         },
         {
@@ -775,6 +783,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "field": "CallLog3.City",
           "display_name": "City",
           "joins": [
@@ -788,6 +797,7 @@
           "class": "field",
           "type": "string",
           "name": "County",
+          "category": "geography",
           "field": "CallLog3.County",
           "display_name": "County",
           "joins": [
@@ -803,6 +813,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -816,6 +827,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -1165,6 +1177,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "field": "CallLog3.City",
           "display_name": "City",
           "joins": [
@@ -1178,6 +1191,7 @@
           "class": "field",
           "type": "string",
           "name": "County",
+          "category": "geography",
           "field": "CallLog3.County",
           "display_name": "County",
           "joins": [
@@ -1193,6 +1207,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -1206,6 +1221,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -1608,6 +1624,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "field": "CallLog3.City",
           "display_name": "City",
           "joins": [
@@ -1621,6 +1638,7 @@
           "class": "field",
           "type": "string",
           "name": "County",
+          "category": "geography",
           "field": "CallLog3.County",
           "display_name": "County",
           "joins": [
@@ -1636,6 +1654,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -1649,6 +1668,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -1964,6 +1984,7 @@
           "class": "field",
           "type": "string",
           "name": "City",
+          "category": "geography",
           "field": "CallLog3.City",
           "display_name": "City",
           "joins": [
@@ -1977,6 +1998,7 @@
           "class": "field",
           "type": "string",
           "name": "County",
+          "category": "geography",
           "field": "CallLog3.County",
           "display_name": "County",
           "joins": [
@@ -1992,6 +2014,7 @@
           "name": "builtin.geographyV2.state",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
@@ -2005,6 +2028,7 @@
           "name": "State",
           "display_name": "State",
           "field": "State",
+          "category": "geography",
           "joins": [
             [
               "CallLog3",
