@@ -1764,7 +1764,7 @@ class QueryProcessor:
     def generate_and_run_query(self, qb, distinct_values_query=False):
 
         sql = self.generate_query(qb)
-        output = self.run_query(sql, qb.getAllSelects(), distinct_values_query=distinct_values_query)
+        output = self.run_query(sql, qb.getAllSelects(), distinct_values_query=distinct_values_query, groups=qb.groups)
 
         return output, sql
 
@@ -1773,7 +1773,7 @@ class QueryProcessor:
         sql = qbr.render(qb)
         return sql
 
-    def run_query(self, sql, headers, distinct_values_query=False):
+    def run_query(self, sql, headers, distinct_values_query=False, groups=[]):
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
         result = msr.query(sql)
@@ -1787,14 +1787,15 @@ class QueryProcessor:
             rows.append(row_dictionary)
         if distinct_values_query:
             return {'OldOutput': rows, 'Output': rows}
+        headers_no_groups = [header for header in headers if header not in groups]
         if len(rows) > 10:
             totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows])) for _, header in
-                      headers[-2:]]
+                      headers_no_groups]
             totals_row = {**{header: 'Total' for _, header in headers[:-2]},
-                          **{header: totals[ix] for ix, (_, header) in enumerate(headers[-2:])}}
+                          **{header: totals[ix] for ix, (_, header) in enumerate(headers_no_groups)}}
             return {'OldOutput': rows, 'Output': rows + [totals_row]}
         transposed_output = []
-        for _, header in headers[-2:]:
+        for _, header in headers_no_groups:
             transposed_row = {'Header': header}
             total = 0
             for row in rows:
