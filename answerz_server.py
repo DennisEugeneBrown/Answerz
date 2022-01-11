@@ -394,7 +394,6 @@ class QueryBlockRenderer:
         return sql
 
     def renderConditionsInQuery(self, qb):
-        # return self.renderConditions(qb.conditions_by_type)
         return self.renderConditions(qb.conditions_by_category)
 
     def renderConditions(self, conditions):
