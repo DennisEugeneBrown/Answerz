@@ -1723,8 +1723,8 @@ class LuisIntentProcessor:
         entities = self.entities_normalized(q)
         entities = self.clean_overlapping_entities(entities)
 
-        if is_a_prev_query:
-            entities.pop('_GroupAction')
+        # if is_a_prev_query:
+        #     entities.pop('_GroupAction')
 
         geography_entities_found = self.get_entities_of_types(self.geography_entity_types, entities)
         geography_entities_found, entities = self.remove_duplicate_geo_entities(geography_entities_found, entities)
