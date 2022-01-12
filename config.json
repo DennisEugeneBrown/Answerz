@@ -487,13 +487,6 @@
         {
           "class": "field",
           "type": "string",
-          "name": "AnnualIncome",
-          "field": "AnnualIncome",
-          "joins": null
-        },
-        {
-          "class": "field",
-          "type": "string",
           "name": "BranchOfService",
           "field": "BranchOfService",
           "joins": null
@@ -655,19 +648,6 @@
           "name": "Length",
           "field": "CallLog3.CallLength",
           "display_name": "CallLength",
-          "joins": [
-            [
-              "CallLog3",
-              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
-            ]
-          ]
-        },
-        {
-          "class": "field",
-          "type": "string",
-          "name": "builtin.currency",
-          "field": "CallLog3.AnnualIncome",
-          "display_name": "AnnualIncome",
           "joins": [
             [
               "CallLog3",
@@ -1027,19 +1007,6 @@
           "name": "Length",
           "field": "CallLog3.CallLength",
           "display_name": "CallLength",
-          "joins": [
-            [
-              "CallLog3",
-              "CallReferrals.CallReportNum=CallLog3.CallReportNum"
-            ]
-          ]
-        },
-        {
-          "class": "field",
-          "type": "string",
-          "name": "builtin.currency",
-          "field": "CallLog3.AnnualIncome",
-          "display_name": "AnnualIncome",
           "joins": [
             [
               "CallLog3",
@@ -1505,19 +1472,6 @@
         },
         {
           "class": "field",
-          "type": "string",
-          "name": "builtin.currency",
-          "field": "CallLog3.AnnualIncome",
-          "display_name": "AnnualIncome",
-          "joins": [
-            [
-              "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
-            ]
-          ]
-        },
-        {
-          "class": "field",
           "type": "int",
           "name": "builtin.age",
           "field": "CallLog3.age",
@@ -1856,19 +1810,6 @@
           "name": "Length",
           "field": "CallLog3.CallLength",
           "display_name": "CallLength",
-          "joins": [
-            [
-              "CallLog3",
-              "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
-            ]
-          ]
-        },
-        {
-          "class": "field",
-          "type": "string",
-          "name": "builtin.currency",
-          "field": "CallLog3.AnnualIncome",
-          "display_name": "AnnualIncome",
           "joins": [
             [
               "CallLog3",

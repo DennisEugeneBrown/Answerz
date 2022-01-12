@@ -134,6 +134,7 @@ class QueryBlock:
         self.condition_locs = {}
         self.conditions_by_type = {}
         self.conditions_by_category = {}
+        self.date_range_conditions = {}
         self.choice_for_field = {}
 
     def addTable(self, tableNames, join=None):
@@ -232,6 +233,7 @@ class QueryBlock:
         self.condition_locs = {**self.condition_locs, **qb_other.condition_locs}
         self.conditions_by_type = self.merge_conditions_by_type(qb_other.conditions_by_type)
         self.conditions_by_category = self.merge_conditions_by_category(qb_other.conditions_by_category)
+        self.date_range_conditions = {**self.date_range_conditions, **qb_other.date_range_conditions}
         self.choice_for_field = {**self.choice_for_field, **qb_other.choice_for_field}
         return True
 
@@ -394,9 +396,9 @@ class QueryBlockRenderer:
         return sql
 
     def renderConditionsInQuery(self, qb):
-        return self.renderConditions(qb.conditions_by_category)
+        return self.renderConditions(qb.conditions_by_category, qb.date_range_conditions)
 
-    def renderConditions(self, conditions):
+    def renderConditions(self, conditions, date_conditions=None):
         sql = ""
 
         def encodeLHS(lhs):
@@ -428,6 +430,13 @@ class QueryBlockRenderer:
         sql = sql + ' AND '.join(
             ['(' + ' OR '.join([encodeCondition(cond) for cond in conds]) + ')' for conds in
              conditions.values()])
+
+        if date_conditions:
+            date_conditions_sql = ' OR '.join(
+                ['(' + ' AND '.join([encodeCondition(cond) for cond in conds]) + ')' for conds in
+                 date_conditions.values()])
+
+            sql = sql + ' AND ({})'.format(date_conditions_sql) if sql else date_conditions_sql
 
         return sql
 
@@ -1365,50 +1374,20 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
             if "start" in entity_value:
                 condition = ["gte", field_name, entity_value["start"]]
-                qb.conditions.append(condition)
-                if entity['type'] + 'Start' in qb.conditions_by_type:
-                    qb.conditions_by_type[entity['type'] + 'Start'].append(condition)
+                if entity['text'] in qb.date_range_conditions:
+                    qb.date_range_conditions[entity['text']].append(condition)
                 else:
-                    qb.conditions_by_type[entity['type'] + 'Start'] = [condition]
-
-                if 'category' not in lu:
-                    lu['category'] = entity['type']
-
-                if lu['category'] in qb.conditions_by_category:
-                    qb.conditions_by_category[lu['category'] + 'Start'].append(condition)
-                else:
-                    qb.conditions_by_category[lu['category'] + 'Start'] = [condition]
+                    qb.date_range_conditions[entity['text']] = [condition]
 
             if "end" in entity_value:
                 condition = ["lt", field_name, entity_value["end"]]
-                qb.conditions.append(condition)
-                if entity['type'] + 'End' in qb.conditions_by_type:
-                    qb.conditions_by_type[entity['type'] + 'End'].append(condition)
-                else:
-                    qb.conditions_by_type[entity['type'] + 'End'] = [condition]
-
-                if 'category' not in lu:
-                    lu['category'] = entity['type']
-
-                if lu['category'] in qb.conditions_by_category:
-                    qb.conditions_by_category[lu['category'] + 'End'].append(condition)
-                else:
-                    qb.conditions_by_category[lu['category'] + 'End'] = [condition]
             else:
                 condition = ["lt", field_name, datetime.now().strftime('%Y-%m-%d')]
-                qb.conditions.append(condition)
-                if entity['type'] in qb.conditions_by_type:
-                    qb.conditions_by_type[entity['type']].append(condition)
-                else:
-                    qb.conditions_by_type[entity['type']] = [condition]
 
-                if 'category' not in lu:
-                    lu['category'] = entity['type']
-
-                if lu['category'] in qb.conditions_by_category:
-                    qb.conditions_by_category[lu['category']].append(condition)
-                else:
-                    qb.conditions_by_category[lu['category']] = [condition]
+            if entity['text'] in qb.date_range_conditions:
+                qb.date_range_conditions[entity['text']].append(condition)
+            else:
+                qb.date_range_conditions[entity['text']] = [condition]
 
             if "joins" in lu and lu["joins"]:
                 for join in lu["joins"]:
@@ -1552,6 +1531,9 @@ class LuisIntentProcessor:
                 if entity_type == 'CallLength':
                     e['entity'] = e['entity'].lower().replace('minutes', '').strip()
                 decoder = self.get_entity_decoder(e)
+
+                if '_GroupAction' in entities_by_type:
+                    continue
 
                 if decoder:
                     print('Decoding {}...'.format(e))
@@ -1827,7 +1809,7 @@ class QueryProcessor:
         if distinct_values_query:
             return {'OldOutput': rows, 'Output': rows}
         headers_no_groups = [header for header in headers if header not in groups]
-        if len(rows) > 10:
+        if len(rows) > 7:
             totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows])) for _, header in
                       headers_no_groups]
             totals_row = {**{header: 'Total' for _, header in headers[:-2]},

@@ -77,7 +77,7 @@ function App() {
     const [weight, setWeight] = React.useState('');
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.32'
+    const versionNumber = '2.0.33'
 
     const [getInputState, setInputState] = useState('');
 
@@ -753,7 +753,8 @@ function App() {
                                                 <React.Fragment>
                                                     <Typography id="modal-modal-title" variant="h6" component="h3"
                                                                 textAlign={'center'}>
-                                                        <Button variant="outlined" onClick={handleChildModalOpen}>Actions</Button>
+                                                        <Button variant="outlined"
+                                                                onClick={handleChildModalOpen}>Actions</Button>
                                                     </Typography>
                                                     <Modal
                                                         hideBackdrop
