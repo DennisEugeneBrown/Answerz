@@ -168,22 +168,22 @@ class QueryBlock:
         allSelects = []
         allSelects.extend([group for group in self.groups[:] if
                            group[0] not in self.groups_to_skip and group not in self.selects])
-        if self.conditions_by_type:
-            pivot_condition_type = list(self.conditions_by_type.keys())[-1]
-            pivot_conditions_count = len(self.conditions_by_type[pivot_condition_type])
-            other_condition_types = list(self.conditions_by_type.keys())[:-1]
-            for condition in self.conditions_by_type[pivot_condition_type]:
+        if self.conditions_by_category:
+            pivot_condition_category = list(self.conditions_by_category.keys())[-1]
+            pivot_conditions_count = len(self.conditions_by_category[pivot_condition_category])
+            other_condition_categories = list(self.conditions_by_category.keys())[:-1]
+            for condition in self.conditions_by_category[pivot_condition_category]:
                 other_condition_selects = []
-                for other_condition_type in other_condition_types:
-                    if len(self.conditions_by_type[other_condition_type]) <= 1:
+                for other_condition_category in other_condition_categories:
+                    if len(self.conditions_by_category[other_condition_category]) <= 1:
                         continue
-                    for other_condition in self.conditions_by_type[other_condition_type]:
+                    for other_condition in self.conditions_by_category[other_condition_category]:
                         other_condition_selects.append(self.generateConditionalCountSelect(
-                            {pivot_condition_type: [condition], other_condition_type: [other_condition]}))
+                            {pivot_condition_category: [condition], other_condition_category: [other_condition]}))
                 if other_condition_selects:
                     allSelects.extend(other_condition_selects)
                 if pivot_conditions_count > 1:
-                    allSelects.append(self.generateConditionalCountSelect({pivot_condition_type: [condition]}))
+                    allSelects.append(self.generateConditionalCountSelect({pivot_condition_category: [condition]}))
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
 
@@ -1359,6 +1359,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
 
             if "start" in entity_value:
                 condition = ["gte", field_name, entity_value["start"]]
+                qb.conditions.append(condition)
                 if entity['text'] in qb.date_range_conditions:
                     qb.date_range_conditions[entity['text']].append(condition)
                 else:
@@ -1368,6 +1369,7 @@ class DateRangeEntityDecoder(EntityDecoderBase):
                 condition = ["lt", field_name, entity_value["end"]]
             else:
                 condition = ["lt", field_name, datetime.now().strftime('%Y-%m-%d')]
+            qb.conditions.append(condition)
 
             if entity['text'] in qb.date_range_conditions:
                 qb.date_range_conditions[entity['text']].append(condition)
@@ -1495,19 +1497,21 @@ class LuisIntentProcessor:
     def generateDistinctValuesQuery(self, qb):
         new_qb = QueryBlock()
         new_qb.tables = qb.tables[0:1]
-        new_qb.conditions = [cond for cond in qb.conditions if cond[0] == 'lk' or ' like ' in cond[0]]
-        new_qb.conditions_by_type = {}
-        for type_, conds in qb.conditions_by_type.items():
+        new_qb.conditions = qb.conditions
+        new_qb.conditions_by_category = {}
+        for category_, conds in qb.conditions_by_category.items():
             for cond in conds:
-                if cond[0] == 'lk' or ' like ' in cond[0]:
-                    if type_ in new_qb.conditions_by_type:
-                        new_qb.conditions_by_type[type_].append(cond)
-                    else:
-                        new_qb.conditions_by_type[type_] = [cond]
+                # if cond[0] == 'lk' or ' like ' in cond[0]:
+                if category_ in new_qb.conditions_by_category:
+                    new_qb.conditions_by_category[category_].append(cond)
+                else:
+                    new_qb.conditions_by_category[category_] = [cond]
         field_name = new_qb.conditions[0][1] if new_qb.conditions[0][1] else new_qb.conditions[0][0].split(' like ')[0]
         new_qb.selects = [['COUNT(*)', field_name]]
         new_qb.groups = [[field_name, field_name]]
         new_qb.joins = qb.joins
+        new_qb.date_range_conditions = qb.date_range_conditions
+        new_qb.queryIntent = qb.queryIntent
         return new_qb
 
     def process_entity_list(self, entity_list, query, entities_by_type):
@@ -1517,7 +1521,7 @@ class LuisIntentProcessor:
                     e['entity'] = e['entity'].lower().replace('minutes', '').strip()
                 decoder = self.get_entity_decoder(e)
 
-                if '_GroupAction' in entities_by_type:
+                if '_GroupAction' in entities_by_type and '_FieldName' in entities_by_type:
                     continue
 
                 if decoder:
@@ -1859,17 +1863,19 @@ class AnswerzProcessor:
     def generate_text_query(self, qb, row):
         # conditions = [cond[-1] + ' ' + cond[1].split('.')[-1] for cond in qb.conditions]
         conditions = []
-        for cond in qb.conditions:
-            cond_value = cond[-1]
-            field_name = cond[1].split('.')[-1]
-            if '%' in cond_value:
-                if cond[1] in row:
-                    cond_value = row[cond[1]]
-                else:
-                    cond_value = cond_value.replace('%', '')
-            if field_name.lower() == 'state':
-                cond_value = us.states.lookup(cond_value).name
-            conditions.append(str(cond_value) + ' ' + field_name)
+        for conds in qb.conditions_by_category.values():
+            for cond in conds:
+                cond_value = cond[-1]
+                field_name = cond[1].split('.')[-1]
+                if '%' in cond_value:
+                    if cond[1] in row:
+                        cond_value = row[cond[1]]
+                    else:
+                        cond_value = cond_value.replace('%', '')
+                if field_name.lower() == 'state':
+                    cond_value = us.states.lookup(cond_value).name
+                conditions.append(str(cond_value) + ' ' + field_name)
+        conditions.extend(qb.date_range_conditions.keys())
         return qb.queryIntent[-1] + ' ' + qb.queryIntent[0] + ' From ' + ' and '.join(conditions)
 
     def generate_rows_and_cols(self, pq, result):
@@ -1958,12 +1964,13 @@ class AnswerzProcessor:
                     list(distinct_values_table[0]['OldOutput'][0].keys())] if distinct_values_table and len(
                     distinct_values_table[0]['OldOutput']) > 1 else []
 
-                distinct_values_table_rows = [{'id': ix + 1, 'value': self.generate_text_query(pq, row), **row} for
-                                              ix, row
-                                              in
-                                              enumerate(
-                                                  distinct_values_table[0][
-                                                      'OldOutput'])] if distinct_values_table and len(
+                distinct_values_table_rows = [
+                    {'id': ix + 1, 'value': self.generate_text_query(pq.distinct_values_query, row), **row} for
+                    ix, row
+                    in
+                    enumerate(
+                        distinct_values_table[0][
+                            'OldOutput'])] if distinct_values_table and len(
                     distinct_values_table[0]['OldOutput']) > 1 else []
 
                 results.append({'result': result,
