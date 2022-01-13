@@ -52,7 +52,8 @@ class Answerz(Resource):
                     continue
                 col_1 = group[1]
                 # col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
-                conds = qbr.renderConditionsInQuery(qs[res_ix])
+                # conds = qbr.renderConditionsInQuery(qs[res_ix])
+                conds = qbr.renderConditionsReadable(qs[res_ix])
                 if conds and len(conds) <= 128:
                     col_2 = conds
                 else:
@@ -92,8 +93,8 @@ class Answerz(Resource):
                  'total': res['total']})
         if len(tables) > 1:
             distinct_values = [
-                {'name': qbr.renderConditionsInQuery(out_qs[ix]),
-                 'count': sum([v[qbr.renderConditionsInQuery(out_qs[ix])] for v in val])} for
+                {'name': qbr.renderConditionsReadable(out_qs[ix]),
+                 'count': sum([v[qbr.renderConditionsReadable(out_qs[ix])] for v in val])} for
                 ix, val in enumerate(out)]
             distinct_values_table_cols = [
                 {'field': key, 'headerName': '', 'flex': 1 if key == 'name' else 0.3} for key in

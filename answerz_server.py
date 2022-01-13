@@ -1,7 +1,6 @@
 import us
 import csv
 import copy
-import math
 import json
 import pyodbc
 import pprint
@@ -157,12 +156,9 @@ class QueryBlock:
         self.groups.append(group_field)
 
     def generateConditionalCountSelect(self, conditions):
-        # Count(IIF(CallLog3.City = 'Anaheim', 1, null)) AS [(CallLog3.City = 'Anaheim')],
         qbr = QueryBlockRenderer()
         rendered_condition = qbr.renderConditions(conditions)
         sql = "Count(IIF({}, 1, null))".format(rendered_condition)
-        # field_name = rendered_condition if len(rendered_condition) < 125 else ' AND '.join(
-        #     [cond[0][-1] for cond in conditions.values()])
         field_name = ' And '.join([cond[0][-1].replace('%', '') for cond in conditions.values()])
         return [sql, field_name]
 
@@ -248,15 +244,17 @@ class QueryBlockRenderer:
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
         cond_sql = self.renderConditionsInQuery(qb)
-        if cond_sql and len(cond_sql) <= 128:
+        cond_select = self.renderConditionsReadable(qb)
+        # cond_select = qb.conditions[0][-1].title()
+        if cond_select and len(cond_select) <= 128:
             for ix, select in enumerate(qb.selects):
                 if 'Count_' in select[1]:
                     for sort_ix, sort in enumerate(qb.sorts):
                         if select[1] == sort[0]:
-                            qb.sorts[sort_ix] = ('[' + cond_sql + ']', sort[1])
-                    qb.selects[ix][1] = cond_sql
+                            qb.sorts[sort_ix] = ('[' + cond_select + ']', sort[1])
+                    qb.selects[ix][1] = cond_select
 
-            qb.selects[0][1] = cond_sql
+            qb.selects[0][1] = cond_select
 
         if qb.with_query and qb.conditions:
             qb.with_query.selects = [['COUNT(*)', 'Total_Responses'], ["SUM({})".format(
@@ -398,6 +396,50 @@ class QueryBlockRenderer:
     def renderConditionsInQuery(self, qb):
         return self.renderConditions(qb.conditions_by_category, qb.date_range_conditions)
 
+    def renderConditionsReadable(self, qb):
+        conditions = qb.conditions_by_category
+        date_conditions = qb.date_range_conditions
+
+        out = ""
+
+        def encodeLHS(lhs):
+
+            return lhs
+
+        def encodeRHS(rhs):
+            return "'" + str(rhs) + "'"
+
+        def encodeCondition(cond):
+            op, lhs, rhs = cond
+
+            if op == "eq":
+                return encodeLHS(lhs) + " = " + encodeRHS(rhs)
+            if op == "lk":
+                return encodeLHS(lhs) + " like " + encodeRHS(rhs)
+            if op == "lt":
+                return encodeLHS(lhs) + " < " + encodeRHS(rhs)
+            if op == "lte":
+                return encodeLHS(lhs) + " <= " + encodeRHS(rhs)
+            if op == "gt":
+                return encodeLHS(lhs) + " > " + encodeRHS(rhs)
+            if op == "gte":
+                return encodeLHS(lhs) + " >= " + encodeRHS(rhs)
+            if op == "not":
+                return encodeLHS(lhs) + " != " + encodeRHS(rhs)
+            return op
+
+        out = out + ' AND '.join(
+            ['(' + ' OR '.join(
+                [cond[-1].title().replace('%', '') + ' ' + cond[1].split('.')[-1] for cond in conds]) + ')' for conds in
+             conditions.values()])
+
+        if date_conditions:
+            date_conditions_sql = ' OR '.join(['(' + cond + ')' for cond in date_conditions.keys()])
+
+            out = out + ' AND ({})'.format(date_conditions_sql) if out else date_conditions_sql
+
+        return out
+
     def renderConditions(self, conditions, date_conditions=None):
         sql = ""
 
@@ -520,63 +562,6 @@ class QueryBlockRenderer:
                 encodeCondition(term, agg)
 
         return selects
-
-
-class QueryTestBlocks:
-    # This is defined as a class level function not an instance level function. its a way to manage globals
-    def simple_count(self):
-        qb = QueryBlock()
-        qb.addTable("CallLog")
-        qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
-        return qb
-
-    # This is defined as a class level function not an instance level function. its a way to manage globals
-    def simple_count_with_date_filter(self):
-        qb = QueryBlock()
-        qb.addTable("CallLog")
-        qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
-
-        qb.conditions.append(["gte", "CallLog.Date", "2018-01-01"])
-        qb.conditions.append(["lt", "CallLog.Date", "2019-01-01"])
-
-        return qb
-
-    # This is defined as a class level function not an instance level function. its a way to manage globals
-    def simple_count_and_join(self):
-        qb = QueryBlock()
-        qb.addTable("CallLog")
-        qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
-        qb.joins.append(("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
-        return qb
-
-    # This is defined as a class level function not an instance level function. its a way to manage globals
-    def simple_count_and_grouped_join(self):
-        qb = QueryBlock()
-        qb.addTable("CallLog")
-        # qb.selects.append(("Count(distinct CallReportNum)", "Measure"))
-        qb.addTable("CallLog")
-        qb.addTable("CallLogNeeds",
-                    "CallLog.CallReportNum=CallLogNeeds.CallLogId")
-        # qb.joins.append(("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
-        qb.groups.append(["CallLogNeeds.Need", "Need"])
-        return qb
-
-    def chained_select_and_group(self):
-        qb1 = QueryBlock()
-        qb1.tables = ["CallLog"]
-        qb1.selects.append(("Count(distinct CallReportNum)", "Measure"))
-
-        qb2 = QueryBlock()
-        qb2.tables = ["CallLog"]
-        qb2.joins.append(
-            ("CallLogNeeds", "CallLog.CallReportNum=CallLogNeeds.CallLogId"))
-        qb3 = QueryBlock()
-        qb3.groups.append(["CallLogNeeds.Need", "Need"])
-
-        qb = QueryBlock()
-        qb.merge(qb1)
-        qb.merge(qb2)
-        return qb
 
 
 class AggregationByDescriptionIntentDecoder:
@@ -1809,7 +1794,7 @@ class QueryProcessor:
         if distinct_values_query:
             return {'OldOutput': rows, 'Output': rows}
         headers_no_groups = [header for header in headers if header not in groups]
-        if len(rows) > 7:
+        if len(rows) > 4:
             totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows])) for _, header in
                       headers_no_groups]
             totals_row = {**{header: 'Total' for _, header in headers[:-2]},
@@ -1817,7 +1802,7 @@ class QueryProcessor:
             return {'OldOutput': rows, 'Output': rows + [totals_row]}
         transposed_output = []
         for _, header in headers_no_groups:
-            transposed_row = {'Header': header}
+            transposed_row = {'': header}
             total = 0
             for row in rows:
                 # for _, new_header in headers[:-2]:
@@ -1899,7 +1884,7 @@ class AnswerzProcessor:
             cols = [
                 {'field': key,
                  'headerName': key.title().replace('_', ' ') if '.' not in key else pq.queryIntent[0],
-                 'flex': 1 if key == 'Header' else 0.3, 'resizable': True}
+                 'flex': 1 if key == '' else 0.3, 'resizable': True}
                 for key
                 in
                 list(result['Output'][0].keys())] if \
@@ -1943,7 +1928,9 @@ class AnswerzProcessor:
                         list(result['Output'][0].keys())] if \
                     result['Output'] else []
 
-                conds = qbr.renderConditionsInQuery(pq)
+                conds = qbr.renderConditionsReadable(pq)
+                # conds = qbr.renderConditionsInQuery(pq)
+                # conds = pq.conditions[0][-1].title()
                 if conds and len(conds) <= 128:
                     col = conds
                 else:
