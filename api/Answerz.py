@@ -57,11 +57,11 @@ class Answerz(Resource):
                 if conds and len(conds) <= 128:
                     col_2 = conds
                 else:
-                    col_2 = 'Calls'
+                    col_2 = qs[res_ix].queryIntent[0]
                 extra_cols = []
                 extra_rows = []
                 for supp_ix, supp_q in enumerate(supp_qs):
-                    supp_col = qbr.renderConditionsInQuery(supp_q) or 'Calls'
+                    supp_col = qbr.renderConditionsInQuery(supp_q) or supp_q.queryIntent[0]
                     extra_cols.append(supp_col)
                     rows = []
                     for row in res['supp_results'][supp_ix]['Output']:
@@ -73,15 +73,15 @@ class Answerz(Resource):
                     'OldOutput'] else [col_2]
                 if len(cols) > 1:
                     cols.remove(conds) if conds in cols else cols.remove(col_2)
-                chart_data.append([col_1] + cols + extra_cols)
+                chart_data.append([col_1] + list(reversed(cols)) + extra_cols)
                 for ix, row in enumerate(res['result']['OldOutput']):
                     if row[col_1] in extra_rows_by_group:  # Fill up chart data for the corresponding group values
                         chart_data.append(
-                            [str(row[col_1])] + [row[col] for col in cols] + [extra_rows_by_group[row[col_1]][col] for
+                            [str(row[col_1])] + [row[col] for col in list(reversed(cols))] + [extra_rows_by_group[row[col_1]][col] for
                                                                               col in
                                                                               extra_cols])
                     else:  # Fill up chart data for any missing years (groups)
-                        chart_data.append([str(row[col_1])] + [row[col] for col in cols] + ['' for col in extra_cols])
+                        chart_data.append([str(row[col_1])] + [row[col] for col in list(reversed(cols))] + ['' for col in extra_cols])
 
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
@@ -97,8 +97,8 @@ class Answerz(Resource):
                  'count': sum([v[qbr.renderConditionsReadable(out_qs[ix])] for v in val])} for
                 ix, val in enumerate(out)]
             distinct_values_table_cols = [
-                {'field': key, 'headerName': '', 'flex': 1 if key == 'name' else 0.3} for key in
-                list(distinct_values[0].keys())] if len(distinct_values) > 1 else []
+                {'field': key, 'headerName': '', 'flex': 1 if key == 'value' else 0.3} for key in
+                ['value', 'count']] if len(distinct_values) > 1 else []
             distinct_values_table_rows = [
                 {'id': ix + 1, 'value': ap.generate_text_query(qs[ix], row),
                  'type': row['name'].split('.')[1].split(' ')[0] if '.' in row['name'] else row['name'],

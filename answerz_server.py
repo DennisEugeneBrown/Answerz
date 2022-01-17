@@ -61,7 +61,7 @@ class DataMapRepo:
         print('Group Action: ', _groupAction)
         mapped_grouping = None
         for group in mapped_element["Groupings"]:
-            if group["name"] == _groupAction:
+            if group["name"].lower() == _groupAction.lower():
                 mapped_grouping = group
                 break
         if not mapped_grouping:
@@ -159,7 +159,8 @@ class QueryBlock:
         qbr = QueryBlockRenderer()
         rendered_condition = qbr.renderConditions(conditions)
         sql = "Count(IIF({}, 1, null))".format(rendered_condition)
-        field_name = ' And '.join([cond[0][-1].replace('%', '') for cond in conditions.values()])
+        field_name = ' And '.join(
+            [('Not ' if cond[0][0] == 'not' else '') + cond[0][-1].replace('%', '') for cond in conditions.values()])
         return [sql, field_name]
 
     def getAllSelects(self):
@@ -394,7 +395,7 @@ class QueryBlockRenderer:
         return sql
 
     def renderConditionsInQuery(self, qb):
-        return self.renderConditions(qb.conditions_by_category, qb.date_range_conditions)
+        return self.renderConditions(qb.conditions_by_category, qb.date_range_conditions, cond_sep=qb.cond_sep)
 
     def renderConditionsReadable(self, qb):
         conditions = qb.conditions_by_category
@@ -402,36 +403,27 @@ class QueryBlockRenderer:
 
         out = ""
 
-        def encodeLHS(lhs):
-
-            return lhs
-
-        def encodeRHS(rhs):
-            return "'" + str(rhs) + "'"
-
-        def encodeCondition(cond):
-            op, lhs, rhs = cond
-
-            if op == "eq":
-                return encodeLHS(lhs) + " = " + encodeRHS(rhs)
-            if op == "lk":
-                return encodeLHS(lhs) + " like " + encodeRHS(rhs)
+        def encodeOp(cond):
+            op, field, val = cond
+            if op == "eq" or op == "lk":
+                return ''
             if op == "lt":
-                return encodeLHS(lhs) + " < " + encodeRHS(rhs)
+                return field.split('.')[-1] + " < "
             if op == "lte":
-                return encodeLHS(lhs) + " <= " + encodeRHS(rhs)
+                return field.split('.')[-1] + " <= "
             if op == "gt":
-                return encodeLHS(lhs) + " > " + encodeRHS(rhs)
+                return field.split('.')[-1] + " > "
             if op == "gte":
-                return encodeLHS(lhs) + " >= " + encodeRHS(rhs)
+                return field.split('.')[-1] + " >= "
             if op == "not":
-                return encodeLHS(lhs) + " != " + encodeRHS(rhs)
+                return "Not "
             return op
 
         out = out + ' AND '.join(
-            ['(' + ' OR '.join(
-                [cond[-1].title().replace('%', '') + ' ' + cond[1].split('.')[-1] for cond in conds]) + ')' for conds in
-             conditions.values()])
+            ['(' + ' OR '.join([encodeOp(cond) + str(cond[-1]).title().replace('%', '') for cond in conds]) + ')'
+             if conds[0] and conds[0][0] != 'not' else
+             '(' + ' AND '.join([encodeOp(cond) + str(cond[-1]).title().replace('%', '') for cond in conds]) + ')'
+             for conds in conditions.values()])
 
         if date_conditions:
             date_conditions_sql = ' OR '.join(['(' + cond + ')' for cond in date_conditions.keys()])
@@ -440,8 +432,13 @@ class QueryBlockRenderer:
 
         return out
 
-    def renderConditions(self, conditions, date_conditions=None):
+    def renderConditions(self, conditions, date_conditions=None, cond_sep=None):
         sql = ""
+        sep = ' OR '
+
+        inner_sep = ' AND '
+        if cond_sep and 'or' in [cond.lower() for cond in list(cond_sep.values())]:
+            inner_sep = ' OR '
 
         def encodeLHS(lhs):
 
@@ -452,7 +449,8 @@ class QueryBlockRenderer:
 
         def encodeCondition(cond):
             op, lhs, rhs = cond
-
+            nonlocal sep
+            sep = ' OR '
             if op == "eq":
                 return encodeLHS(lhs) + " = " + encodeRHS(rhs)
             if op == "lk":
@@ -466,12 +464,15 @@ class QueryBlockRenderer:
             if op == "gte":
                 return encodeLHS(lhs) + " >= " + encodeRHS(rhs)
             if op == "not":
+                sep = ' AND '
                 return encodeLHS(lhs) + " != " + encodeRHS(rhs)
             return op
 
-        sql = sql + ' AND '.join(
-            ['(' + ' OR '.join([encodeCondition(cond) for cond in conds]) + ')' for conds in
-             conditions.values()])
+        sql = sql + inner_sep.join(
+            ['(' + sep.join([encodeCondition(cond) for cond in conds]) + ')'
+             if conds[0][0] != 'not' else
+             '(' + ' AND '.join([encodeCondition(cond) for cond in conds]) + ')'
+             for conds in conditions.values()])
 
         if date_conditions:
             date_conditions_sql = ' OR '.join(
@@ -1105,8 +1106,8 @@ class ColumnEntityDecoder(EntityDecoderBase):
 
             entity_name = entity["type"]
             value = values[0] if isinstance(values, list) else values
-            entity_value = (value['value'] if 'value' in value else value['resolution'][0][
-                'value']) if isinstance(value, dict) else value
+            entity_value = (value['value'].title() if 'value' in value else value['resolution'][0][
+                'value'].title()) if isinstance(value, dict) else value
 
             lu = self.lookupTablesAndField(
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
@@ -1244,7 +1245,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 query_block.queryIntent[0], query_block.queryIntent[1], entity_name, self.data_map)
 
             tables = lu["tables"]
-            field_name = lu['field'][entity_value]
+            field_name = lu['field'][entity_value.lower()]
 
             if comparator and 'not' in comparator:
                 if 'default_negative_value' in lu:
@@ -1264,7 +1265,7 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
                 if "." in field_name:  # already scoped
                     choice_for_field[lu['field'][entity['entity']]] = choice
                 else:
-                    choice_for_field[lu['tables'][0] + '.' + lu['field'][entity['entity']]] = choice
+                    choice_for_field[lu['tables'][0] + '.' + lu['field'][entity['entity'].lower()]] = choice
 
             qb = QueryBlock(query_block.queryIntent)
             qb.logical_label = True
@@ -1297,9 +1298,9 @@ class LogicalLabelEntityDecoder(EntityDecoderBase):
 
                 qb.conditions.append(condition)
                 if entity['type'] in qb.conditions_by_type:
-                    qb.conditions_by_type[lu['field'][entity['entity']]].append(condition)
+                    qb.conditions_by_type[lu['field'][entity['entity'].lower()]].append(condition)
                 else:
-                    qb.conditions_by_type[lu['field'][entity['entity']]] = [condition]
+                    qb.conditions_by_type[lu['field'][entity['entity'].lower()]] = [condition]
 
                 if 'category' not in lu:
                     lu['category'] = entity['type']
@@ -1569,10 +1570,10 @@ class LuisIntentProcessor:
                 entity_normalized = q['prediction']['entities'][entity_type][ix_in_type]
                 # entity_normalized = entities[entity_type][ix_in_type]
                 if isinstance(entity_normalized, list):
-                    entity['entity'] = entity_normalized[0]
+                    entity['entity'] = entity_normalized[0].title()
                 elif isinstance(entity_normalized, dict):
                     if 'text' in entity_normalized:
-                        entity['entity'] = entity_normalized['text']
+                        entity['entity'] = entity_normalized['text'].title()
                     else:
                         entity['entity'] = entity_normalized
                 else:
@@ -1792,7 +1793,7 @@ class QueryProcessor:
             row_dictionary = {}
             col_index = 0
             for col in headers:
-                row_dictionary[col[1]] = row[col_index]
+                row_dictionary[col[1]] = row[col_index] if row[col_index] else 'Blank'
                 col_index = col_index + 1
             rows.append(row_dictionary)
         if distinct_values_query:
@@ -1940,7 +1941,7 @@ class AnswerzProcessor:
                 if conds and len(conds) <= 128:
                     col = conds
                 else:
-                    col = 'Calls'
+                    col = pq.queryIntent[0]  # eg. Calls
                 total = sum([row[col] for row in result['OldOutput']])
                 rows, cols = self.generate_rows_and_cols(pq, result)
 

@@ -258,15 +258,15 @@
           "type": "boolean",
           "name": "_LogicalLabel",
           "field": {
-            "WhetherVeteran": "WhetherVeteran",
-            "WhetherVetWithChildren": "WhetherVetWithChildren",
-            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
-            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
-            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
-            "WhetherCombatVet": "WhetherCombatVet",
-            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
-            "WhetherDVCall": "WhetherDVCall",
-            "LGBTQ": "LGBTQ"
+            "whetherveteran": "WhetherVeteran",
+            "whethervetwithchildren": "WhetherVetWithChildren",
+            "whethersafeplacetostay": "WhetherSafePlaceToStay",
+            "whetherinterestedincalfresh": "WhetherInterestedInCalFresh",
+            "whetherinterestedintaxprep": "WhetherInterestedInTaxPrep",
+            "whethercombatvet": "WhetherCombatVet",
+            "whetherhaschildrenunder18": "WhetherHasChildrenUnder18",
+            "whetherdvcall": "WhetherDVCall",
+            "lgbtq": "LGBTQ"
           },
           "exact_match": false,
           "choice": false,
@@ -285,6 +285,20 @@
             [
               "CallLogNeeds",
               "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Referral",
+          "field": "CallReferrals.Referral",
+          "exact_match": false,
+          "choice": false,
+          "joins": [
+            [
+              "CallReferrals",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
             ]
           ]
         }
@@ -570,6 +584,18 @@
             [
               "CallLogNeeds",
               "CallLog3.CallReportNum=CallLogNeeds.CallLogId"
+            ]
+          ]
+        },
+        {
+          "class": "field",
+          "type": "string",
+          "name": "Referral",
+          "field": "CallReferrals.Referral",
+          "joins": [
+            [
+              "CallReferrals",
+              "CallLog3.CallReportNum=CallReferrals.CallReportNum"
             ]
           ]
         }
@@ -918,15 +944,15 @@
           "type": "boolean",
           "name": "_LogicalLabel",
           "field": {
-            "WhetherVeteran": "WhetherVeteran",
-            "WhetherVetWithChildren": "WhetherVetWithChildren",
-            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
-            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
-            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
-            "WhetherCombatVet": "WhetherCombatVet",
-            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
-            "WhetherDVCall": "WhetherDVCall",
-            "LGBTQ": "LGBTQ"
+            "whetherveteran": "WhetherVeteran",
+            "whethervetwithchildren": "WhetherVetWithChildren",
+            "whethersafeplacetostay": "WhetherSafePlaceToStay",
+            "whetherinterestedincalfresh": "WhetherInterestedInCalFresh",
+            "whetherinterestedintaxprep": "WhetherInterestedInTaxPrep",
+            "whethercombatvet": "WhetherCombatVet",
+            "whetherhaschildrenunder18": "WhetherHasChildrenUnder18",
+            "whetherdvcall": "WhetherDVCall",
+            "lgbtq": "LGBTQ"
           },
           "exact_match": false,
           "choice": false,
@@ -1305,15 +1331,15 @@
           "type": "boolean",
           "name": "_LogicalLabel",
           "field": {
-            "WhetherVeteran": "WhetherVeteran",
-            "WhetherVetWithChildren": "WhetherVetWithChildren",
-            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
-            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
-            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
-            "WhetherCombatVet": "WhetherCombatVet",
-            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
-            "WhetherDVCall": "WhetherDVCall",
-            "LGBTQ": "LGBTQ"
+            "whetherveteran": "WhetherVeteran",
+            "whethervetwithchildren": "WhetherVetWithChildren",
+            "whethersafeplacetostay": "WhetherSafePlaceToStay",
+            "whetherinterestedincalfresh": "WhetherInterestedInCalFresh",
+            "whetherinterestedintaxprep": "WhetherInterestedInTaxPrep",
+            "whethercombatvet": "WhetherCombatVet",
+            "whetherhaschildrenunder18": "WhetherHasChildrenUnder18",
+            "whetherdvcall": "WhetherDVCall",
+            "lgbtq": "LGBTQ"
           },
           "exact_match": false,
           "choice": false,
@@ -1733,15 +1759,15 @@
           "type": "boolean",
           "name": "_LogicalLabel",
           "field": {
-            "WhetherVeteran": "WhetherVeteran",
-            "WhetherVetWithChildren": "WhetherVetWithChildren",
-            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
-            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
-            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
-            "WhetherCombatVet": "WhetherCombatVet",
-            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
-            "WhetherDVCall": "WhetherDVCall",
-            "LGBTQ": "LGBTQ"
+            "whetherveteran": "WhetherVeteran",
+            "whethervetwithchildren": "WhetherVetWithChildren",
+            "whethersafeplacetostay": "WhetherSafePlaceToStay",
+            "whetherinterestedincalfresh": "WhetherInterestedInCalFresh",
+            "whetherinterestedintaxprep": "WhetherInterestedInTaxPrep",
+            "whethercombatvet": "WhetherCombatVet",
+            "whetherhaschildrenunder18": "WhetherHasChildrenUnder18",
+            "whetherdvcall": "WhetherDVCall",
+            "lgbtq": "LGBTQ"
           },
           "exact_match": false,
           "choice": false,
@@ -2086,15 +2112,15 @@
           "type": "boolean",
           "name": "_LogicalLabel",
           "field": {
-            "WhetherVeteran": "WhetherVeteran",
-            "WhetherVetWithChildren": "WhetherVetWithChildren",
-            "WhetherSafePlaceToStay": "WhetherSafePlaceToStay",
-            "WhetherInterestedInCalFresh": "WhetherInterestedInCalFresh",
-            "WhetherInterestedInTaxPrep": "WhetherInterestedInTaxPrep",
-            "WhetherCombatVet": "WhetherCombatVet",
-            "WhetherHasChildrenUnder18": "WhetherHasChildrenUnder18",
-            "WhetherDVCall": "WhetherDVCall",
-            "LGBTQ": "LGBTQ"
+            "whetherveteran": "WhetherVeteran",
+            "whethervetwithchildren": "WhetherVetWithChildren",
+            "whethersafeplacetostay": "WhetherSafePlaceToStay",
+            "whetherinterestedincalfresh": "WhetherInterestedInCalFresh",
+            "whetherinterestedintaxprep": "WhetherInterestedInTaxPrep",
+            "whethercombatvet": "WhetherCombatVet",
+            "whetherhaschildrenunder18": "WhetherHasChildrenUnder18",
+            "whetherdvcall": "WhetherDVCall",
+            "lgbtq": "LGBTQ"
           },
           "exact_match": false,
           "choice": false,
