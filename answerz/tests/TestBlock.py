@@ -1,4 +1,4 @@
-from .answerz_server import QueryBlock
+from answerz.model import QueryBlock
 
 
 class QueryTestBlocks:

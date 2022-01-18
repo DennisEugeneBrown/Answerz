@@ -1,7 +1,9 @@
-import app
 from collections import defaultdict
-from answerz_server import AnswerzProcessor, QueryBlockRenderer
 from flask_restful import Resource, reqparse
+
+from answerz.app import app
+from answerz.process.AnswerzProcessor import AnswerzProcessor
+from answerz.process.QueryBlockRenderer import QueryBlockRenderer
 
 
 class Answerz(Resource):
@@ -15,7 +17,7 @@ class Answerz(Resource):
         # return {"status": "Success", "message": {"Count_CallReportNum": 58113}}
 
         ap = AnswerzProcessor(
-            app.app.config['DATAMAP'], app.app.config['DB'], app.app.config['LUIS'])
+            app.config['DATAMAP'], app.config['DB'], app.config['LUIS'])
         qbr = QueryBlockRenderer()
         parser = reqparse.RequestParser()
         parser.add_argument('text', type=str)
@@ -77,11 +79,13 @@ class Answerz(Resource):
                 for ix, row in enumerate(res['result']['OldOutput']):
                     if row[col_1] in extra_rows_by_group:  # Fill up chart data for the corresponding group values
                         chart_data.append(
-                            [str(row[col_1])] + [row[col] for col in list(reversed(cols))] + [extra_rows_by_group[row[col_1]][col] for
-                                                                              col in
-                                                                              extra_cols])
+                            [str(row[col_1])] + [row[col] for col in list(reversed(cols))] + [
+                                extra_rows_by_group[row[col_1]][col] for
+                                col in
+                                extra_cols])
                     else:  # Fill up chart data for any missing years (groups)
-                        chart_data.append([str(row[col_1])] + [row[col] for col in list(reversed(cols))] + ['' for col in extra_cols])
+                        chart_data.append(
+                            [str(row[col_1])] + [row[col] for col in list(reversed(cols))] + ['' for col in extra_cols])
 
             out_qs.append(qs[res_ix])
             sql_lower.append(sql.lower())
