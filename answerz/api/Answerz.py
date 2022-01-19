@@ -34,7 +34,6 @@ class Answerz(Resource):
         totals = totals_table = None
         follow_up = False
         tables = []
-        other_results_table = []
         out_qs = []
         for res_ix, res in enumerate(results):
             if res['follow_up']:
@@ -53,8 +52,6 @@ class Answerz(Resource):
                 if group[1] in qs[res_ix].groups_to_skip:
                     continue
                 col_1 = group[1]
-                # col_2 = qbr.renderConditions(qs[res_ix]) or 'Calls'
-                # conds = qbr.renderConditionsInQuery(qs[res_ix])
                 conds = qbr.renderConditionsReadable(qs[res_ix])
                 if conds and len(conds) <= 128:
                     col_2 = conds

@@ -1,5 +1,6 @@
 from answerz.model.QueryBlock import QueryBlock
 from answerz.model.DataMapRepo import DataMapRepo
+from answerz.utils.entities import handle_groupings
 
 
 class BreakdownByIntentDecoder:
@@ -35,33 +36,16 @@ class BreakdownByIntentDecoder:
         try:
             _element = qb.queryIntent[0]  # TODO: Add and use a getter
             _aggregation = qb.queryIntent[1]  # TODO: Add and use a getter
-        except:
+        except AttributeError:
             print('ERROR. CANNOT FIND PREVIOUS QUERY TO BREAKDOWN.')
             return QueryBlock()
 
         _groupAction_ix, _groupAction = self.findEntityByType(entities, "_GroupAction", return_entity=True)
-        # _fieldName_ix, _fieldName = self.findEntityByType(entities, "_FieldName")
         _logicalLabel_ix, _logicalLabel = self.findEntityByType(entities, "_LogicalLabel")
-
         _fieldNames, _fieldName_entities = self.findFieldNames(entities)
 
-        for _fieldName in _fieldName_entities:
-            start_index = _fieldName['startIndex']
-            end_index = _fieldName['startIndex'] + _fieldName['length']
-            ixs_to_remove = []
-            for ix, entity in enumerate(entities):
-                if entity == _fieldName:
-                    continue
-                entity_start_index = entity['startIndex']
-                entity_end_index = entity['startIndex'] + entity['length']
-                if entity_start_index >= start_index and entity_end_index <= end_index:
-                    ixs_to_remove.append(ix)
-            for ix in reversed(ixs_to_remove):
-                entities.pop(ix)
-
         data_map_repo = DataMapRepo(self.data_map)
-        _, mapped_aggregation = data_map_repo.findMapping(
-            _element, _aggregation)
+        _, mapped_aggregation = data_map_repo.findMapping(_element, _aggregation)
 
         mapped_groupings = []
         if _groupAction:
@@ -99,27 +83,10 @@ class BreakdownByIntentDecoder:
 
         if _groupAction['entity'].lower() in ['group by', 'breakdown by'] and mapped_groupings and (
                 _fieldNames or _logicalLabel):
-            for mapped_grouping in mapped_groupings:
-                if mapped_grouping['joins']:
-                    qb.joins.extend(tuple(mapped_grouping['joins']))
-                if 'display_name' in mapped_grouping:
-                    qb.groups.append(
-                        (mapped_grouping['field'], mapped_grouping['display_name']))
-                else:
-                    qb.groups.append(
-                        (mapped_grouping['field'], mapped_grouping['name']))
-                if 'sort_fields' in mapped_grouping:
-                    for sort_field in mapped_grouping['sort_fields']:
-                        if qb.sorts and sort_field not in qb.sorts:
-                            qb.sorts.append(sort_field)
-                        if sort_field[0] != mapped_grouping['field']:
-                            qb.groups.append((sort_field[0], sort_field[0]))
-                else:
-                    if qb.sorts and (qb.selects[0][-1], 'DESC') not in qb.sorts:
-                        qb.sorts.append((qb.selects[0][-1], 'DESC'))
+            qb = handle_groupings(mapped_groupings, qb)
             qb.selects.append([
                 "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                     count=qb.selects[0][0]),
-                'percentage'])
+                'Percentage'])
 
         return entities, qb

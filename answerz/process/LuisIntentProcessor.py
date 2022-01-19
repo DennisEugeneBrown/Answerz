@@ -5,6 +5,8 @@ from collections import defaultdict
 
 from answerz.model.QueryBlock import QueryBlock
 
+from answerz.utils.entities import findFieldNames, findEntityByType
+
 from answerz.decoder.entity.DateEntityDecoder import DateEntityDecoder
 from answerz.decoder.entity.ColumnEntityDecoder import ColumnEntityDecoder
 from answerz.decoder.entity.DateRangeEntityDecoder import DateRangeEntityDecoder
@@ -21,25 +23,18 @@ class LuisIntentProcessor:
     def __init__(self, data_map):
         # Intent Decoders
         self.data_map = data_map
-        self.i_decoders = {}
-        self.i_decoders["agg-elements-by-description"] = AggregationByDescriptionIntentDecoder(
-            data_map)
-        self.i_decoders["agg-elements-by-logical-yes"] = AggregationByLogicalYesDecoder(
-            data_map)
-        self.i_decoders["breakdown-by"] = BreakdownByIntentDecoder(
-            data_map)
-        self.i_decoders["cross-by-field-name"] = CrossByFieldNameIntentDecoder(
-            data_map)
+        self.i_decoders = {"agg-elements-by-description": AggregationByDescriptionIntentDecoder(
+            data_map), "agg-elements-by-logical-yes": AggregationByLogicalYesDecoder(
+            data_map), "breakdown-by": BreakdownByIntentDecoder(
+            data_map), "cross-by-field-name": CrossByFieldNameIntentDecoder(
+            data_map)}
 
         # Entity Decoders
         self.e_decoder_default = ColumnEntityDecoder(data_map)
-        self.e_decoders = {}
-        self.e_decoders["builtin.datetimeV2.daterange"] = DateRangeEntityDecoder(
-            data_map)
-        self.e_decoders["builtin.datetimeV2.date"] = DateEntityDecoder(
-            data_map)
-        self.e_decoders["_LogicalLabel"] = LogicalLabelEntityDecoder(
-            data_map)
+        self.e_decoders = {"builtin.datetimeV2.daterange": DateRangeEntityDecoder(
+            data_map), "builtin.datetimeV2.date": DateEntityDecoder(
+            data_map), "_LogicalLabel": LogicalLabelEntityDecoder(
+            data_map)}
 
         self.geo_transformations = {
             'County': 'county',
@@ -85,7 +80,6 @@ class LuisIntentProcessor:
         new_qb.conditions_by_category = {}
         for category_, conds in qb.conditions_by_category.items():
             for cond in conds:
-                # if cond[0] == 'lk' or ' like ' in cond[0]:
                 if category_ in new_qb.conditions_by_category:
                     new_qb.conditions_by_category[category_].append(cond)
                 else:
@@ -151,7 +145,6 @@ class LuisIntentProcessor:
         for entity_type, entities_in_type in entities.items():
             for ix_in_type, entity in enumerate(entities_in_type):
                 entity_normalized = q['prediction']['entities'][entity_type][ix_in_type]
-                # entity_normalized = entities[entity_type][ix_in_type]
                 if isinstance(entity_normalized, list):
                     entity['entity'] = entity_normalized[0].title()
                 elif isinstance(entity_normalized, dict):
@@ -298,6 +291,27 @@ class LuisIntentProcessor:
             lists.append(entities_perm)
         return lists
 
+    def prioritize_field_names(self, entities):
+        _field_names, _field_name_entities = findFieldNames(entities)
+
+        # priority for fieldnames always
+
+        for _fieldName in _field_name_entities:
+            start_index = _fieldName['startIndex']
+            end_index = _fieldName['startIndex'] + _fieldName['length']
+            ixs_to_remove = []
+            for ix, entity in enumerate(entities):
+                if entity == _fieldName:
+                    continue
+                entity_start_index = entity['startIndex']
+                entity_end_index = entity['startIndex'] + entity['length']
+                if entity_start_index >= start_index and entity_end_index <= end_index:
+                    ixs_to_remove.append(ix)
+            for ix in reversed(ixs_to_remove):
+                entities.pop(ix)
+
+        return entities
+
     def prepare_query(self, q, prev_q, query_processor, is_a_prev_query=False):
         self.luis = q
 
@@ -337,6 +351,7 @@ class LuisIntentProcessor:
 
         for lst in lists:
             flat_entity_list = [entity for entity_type in lst for entity in lst[entity_type]]
+            flat_entity_list = self.prioritize_field_names(flat_entity_list)
             entity_list, query = intent_decoder.decode(
                 this_intent, flat_entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
             query = self.process_entity_list(entity_list, query, lst)
