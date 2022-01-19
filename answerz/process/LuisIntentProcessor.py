@@ -5,7 +5,9 @@ from collections import defaultdict
 
 from answerz.model.QueryBlock import QueryBlock
 
-from answerz.utils.entities import findFieldNames, findEntityByType
+from answerz.utils.luis_utils import interpret
+
+from answerz.utils.entity_utils import findFieldNames
 
 from answerz.decoder.entity.DateEntityDecoder import DateEntityDecoder
 from answerz.decoder.entity.ColumnEntityDecoder import ColumnEntityDecoder
@@ -20,9 +22,10 @@ from answerz.decoder.intent.AggregationByDescriptionIntentDecoder import Aggrega
 
 class LuisIntentProcessor:
 
-    def __init__(self, data_map):
+    def __init__(self, data_map, luis_config):
         # Intent Decoders
         self.data_map = data_map
+        self.luis_config = luis_config
         self.i_decoders = {"agg-elements-by-description": AggregationByDescriptionIntentDecoder(
             data_map), "agg-elements-by-logical-yes": AggregationByLogicalYesDecoder(
             data_map), "breakdown-by": BreakdownByIntentDecoder(
@@ -92,15 +95,12 @@ class LuisIntentProcessor:
         new_qb.queryIntent = qb.queryIntent
         return new_qb
 
-    def process_entity_list(self, entity_list, query, entities_by_type):
+    def process_entity_list(self, query, entities_by_type):
         for entity_type, entity_list in entities_by_type.items():
             for e in entity_list:
                 if entity_type == 'CallLength':
                     e['entity'] = e['entity'].lower().replace('minutes', '').strip()
                 decoder = self.get_entity_decoder(e)
-
-                if '_GroupAction' in entities_by_type and '_FieldName' in entities_by_type:
-                    continue
 
                 if decoder:
                     print('Decoding {}...'.format(e))
@@ -312,6 +312,20 @@ class LuisIntentProcessor:
 
         return entities
 
+    def handle_filters(self, q, filter_entities):
+        query = q['query'].lower()
+        if filter_entities:
+            for filter_, _ in filter_entities:
+                query = query.replace(filter_['text'].lower(), filter_['entity'].lower())
+            q = interpret(query,
+                          self.luis_config['luis_app_id'],
+                          self.luis_config["luis_subscription_key"])
+            del q['prediction']['entities']['_Filter']
+            del q['prediction']['entities']['$instance']['_Filter']
+        entities = self.entities_normalized(q)
+        entities = self.clean_overlapping_entities(entities)
+        return q, entities
+
     def prepare_query(self, q, prev_q, query_processor, is_a_prev_query=False):
         self.luis = q
 
@@ -327,6 +341,9 @@ class LuisIntentProcessor:
 
         entities = self.entities_normalized(q)
         entities = self.clean_overlapping_entities(entities)
+
+        filter_entities = self.get_entities_of_types(['_Filter'], entities)
+        q, entities = self.handle_filters(q, filter_entities)
 
         geography_entities_found = self.get_entities_of_types(self.geography_entity_types, entities)
         geography_entities_found, entities = self.remove_duplicate_geo_entities(geography_entities_found, entities)
@@ -354,7 +371,7 @@ class LuisIntentProcessor:
             flat_entity_list = self.prioritize_field_names(flat_entity_list)
             entity_list, query = intent_decoder.decode(
                 this_intent, flat_entity_list, prev_q=prev_q, is_a_prev_query=is_a_prev_query)
-            query = self.process_entity_list(entity_list, query, lst)
+            query = self.process_entity_list(query, lst)
             queries.append(query)
 
         return queries, union, supplementary_queries

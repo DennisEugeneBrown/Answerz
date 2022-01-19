@@ -2,6 +2,7 @@ import us
 import requests
 from pprint import pprint
 
+from answerz.utils import luis_utils
 from answerz.process.QueryProcessor import QueryProcessor
 from answerz.process.QueryBlockRenderer import QueryBlockRenderer
 from answerz.process.LuisIntentProcessor import LuisIntentProcessor
@@ -9,26 +10,14 @@ from answerz.process.LuisIntentProcessor import LuisIntentProcessor
 
 class AnswerzProcessor:
     def __init__(self, data_map, db_config, luis_config):
-        self.intentProcessor = LuisIntentProcessor(data_map)
-        self.queryProcessor = QueryProcessor(db_config)
         self.luis_config = luis_config
+        self.intentProcessor = LuisIntentProcessor(data_map, self.luis_config)
+        self.queryProcessor = QueryProcessor(db_config)
         self.db_config = db_config
         self.prev_query = None
 
     def update_prev_query(self, query):
         self.prev_query = query
-
-    def interpret(self, text):
-        staging = "true"
-        luis_app_id = self.luis_config["luis_app_id"]
-        luis_subscription_key = self.luis_config["luis_subscription_key"]
-
-        url = "https://westus.api.cognitive.microsoft.com/luis/prediction/v3.0/apps/{}/slots/staging/predict?subscription-key={}&verbose=true&show-all-intents=true&log=true&query={}".format(
-            luis_app_id, luis_subscription_key, text)
-        r = requests.get(url=url)
-        data = r.json()
-        pprint(data)
-        return data
 
     def generate_text_query(self, qb, row):
         # conditions = [cond[-1] + ' ' + cond[1].split('.')[-1] for cond in qb.conditions]
@@ -69,11 +58,14 @@ class AnswerzProcessor:
         return rows, cols
 
     def run_query(self, text, prev_query=None, return_qs=False):
-        q = self.interpret(text)
+        q = luis_utils.interpret(text, self.luis_config['luis_app_id'], self.luis_config["luis_subscription_key"])
         if prev_query:
-            prev_query, union, supp_queries = self.intentProcessor.prepare_query(self.interpret(prev_query), None,
-                                                                                 self.queryProcessor,
-                                                                                 is_a_prev_query=True)
+            prev_query, union, supp_queries = self.intentProcessor.prepare_query(
+                luis_utils.interpret(prev_query, self.luis_config['luis_app_id'],
+                                     self.luis_config["luis_subscription_key"]),
+                None,
+                self.queryProcessor,
+                is_a_prev_query=True)
             prev_query = prev_query[0]
         pqs, union, supp_queries = self.intentProcessor.prepare_query(q, prev_query, self.queryProcessor)
         if pqs:

@@ -1,6 +1,6 @@
 from answerz.model.QueryBlock import QueryBlock
 from answerz.model.DataMapRepo import DataMapRepo
-from answerz.utils.entities import findFieldNames, findEntityByType, handle_number_entities, handle_groupings
+from answerz.utils.entity_utils import findFieldNames, findEntityByType, handle_number_entities, handle_groupings
 
 
 class AggregationByDescriptionIntentDecoder:

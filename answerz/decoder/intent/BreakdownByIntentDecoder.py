@@ -1,6 +1,6 @@
 from answerz.model.QueryBlock import QueryBlock
 from answerz.model.DataMapRepo import DataMapRepo
-from answerz.utils.entities import handle_groupings
+from answerz.utils.entity_utils import handle_groupings
 
 
 class BreakdownByIntentDecoder:
@@ -30,8 +30,6 @@ class BreakdownByIntentDecoder:
 
     # We pass the entire list of entities to the decoder although we expect most to be ignored here
     def decode(self, intent_name, entities, prev_q=None, is_a_prev_query=False):
-        # global DATA_MAP
-
         qb = prev_q
         try:
             _element = qb.queryIntent[0]  # TODO: Add and use a getter
@@ -63,7 +61,6 @@ class BreakdownByIntentDecoder:
                     mapped_groupings = [mapped_grouping]
                     del entities[_logicalLabel_ix]
                 else:
-                    # mapped_groupings = data_map_repo.getAllGroupings(_element)
                     pass
             elif _groupAction['entity'].lower() == 'compare':
                 qb.is_compare = True
