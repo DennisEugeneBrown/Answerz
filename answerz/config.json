@@ -320,7 +320,7 @@
           "class": "field",
           "type": "string",
           "name": "Level2Name",
-          "field": "CallLogNeeds2.Level2Name",
+          "field": "CallLogNeeds3.Level2Name",
           "exact_match": false,
           "choice": false,
           "joins": [
@@ -703,7 +703,7 @@
           "class": "field",
           "type": "string",
           "name": "Level2Name",
-          "field": "CallLogNeeds2.Level2Name",
+          "field": "CallLogNeeds3.Level2Name",
           "exact_match": false,
           "choice": false,
           "joins": [
