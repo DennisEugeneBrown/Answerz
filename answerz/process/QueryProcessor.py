@@ -49,7 +49,7 @@ class QueryProcessor:
                 # for _, new_header in headers[:-2]:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
-                total += float(str(row[header]).replace('%', ''))
+                total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
             transposed_row['totals'] = round(total)
             transposed_output.append(transposed_row)
         return {'OldOutput': rows, 'Output': transposed_output}

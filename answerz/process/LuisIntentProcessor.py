@@ -294,14 +294,14 @@ class LuisIntentProcessor:
     def prioritize_field_names(self, entities):
         _field_names, _field_name_entities = findFieldNames(entities)
 
-        # priority for fieldnames always
+        # priority for fieldnames except for _DataElements
 
         for _fieldName in _field_name_entities:
             start_index = _fieldName['startIndex']
             end_index = _fieldName['startIndex'] + _fieldName['length']
             ixs_to_remove = []
             for ix, entity in enumerate(entities):
-                if entity == _fieldName:
+                if entity == _fieldName or entity['type'] == '_DataElement':
                     continue
                 entity_start_index = entity['startIndex']
                 entity_end_index = entity['startIndex'] + entity['length']
