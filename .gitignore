@@ -204,7 +204,6 @@ dmypy.json
 ### Project folders
 data/*
 notebooks/*
-scripts/
 profiler/
 frontend/node_modules/
 frontend/build/

@@ -29,6 +29,9 @@ class AggregationByDescriptionIntentDecoder:
 
         qb = QueryBlock((_element, _aggregation))
 
+        if entities[_aggregation_ix]['text'].lower() == 'compare':
+            qb.is_compare = True
+
         if _condition_Separator:
             qb.cond_sep[_condition_Separator['startIndex']] = _condition_Separator['entity']
 

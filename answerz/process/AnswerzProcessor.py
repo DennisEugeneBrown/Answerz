@@ -96,7 +96,10 @@ class AnswerzProcessor:
                     col = conds
                 else:
                     col = pq.queryIntent[0]  # eg. Calls
-                total = sum([row[col] for row in result['OldOutput']])
+                total = sum([row[col] for row in result['OldOutput'] if col in row])
+                if not total and result['OldOutput']:
+                    total = ', '.join([str(val) for val in result['OldOutput'][0].values() if isinstance(val, int)])
+
                 rows, cols = self.generate_rows_and_cols(pq, result)
 
                 totals_table = self.queryProcessor.generate_and_run_query(pq.totals) if pq.totals else None

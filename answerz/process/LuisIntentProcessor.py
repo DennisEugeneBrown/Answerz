@@ -119,18 +119,18 @@ class LuisIntentProcessor:
             cond[1]]] and not query.string_operators and not query.logical_label:
             query.distinct_values_query = self.generateDistinctValuesQuery(query)
 
-        if query.is_compare:
-            column_counter = defaultdict(int)
-            duplicated_value = None
-            for cond in query.conditions:
-                column_counter[cond[1]] += 1
-                if column_counter[cond[1]] > 1:
-                    duplicated_value = cond[1]
-                    break
-            conditions = query.conditions
-            query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
-            query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
-            query.date_count_conditions = True
+        # if query.is_compare:
+        #     column_counter = defaultdict(int)
+        #     duplicated_value = None
+        #     for cond in query.conditions:
+        #         column_counter[cond[1]] += 1
+        #         if column_counter[cond[1]] > 1:
+        #             duplicated_value = cond[1]
+        #             break
+        #     conditions = query.conditions
+        #     query.conditions = [cond for cond in conditions if cond[1] != duplicated_value]
+        #     query.count_conditions = [cond for cond in conditions if cond[1] == duplicated_value]
+        #     query.date_count_conditions = True
         return query
 
     def find_nth(self, haystack, needle, n):

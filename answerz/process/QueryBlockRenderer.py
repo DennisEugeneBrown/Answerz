@@ -6,10 +6,6 @@ class QueryBlockRenderer:
     def render(self, qb):
         sql = ""
 
-        if qb.count_conditions:
-            qb.selects = self.processCountConditions(qb,
-                                                     agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
-
         cond_sql = self.renderConditionsInQuery(qb)
         cond_select = self.renderConditionsReadable(qb)
         if cond_select and len(cond_select) <= 128:
@@ -21,6 +17,14 @@ class QueryBlockRenderer:
                     qb.selects[ix][1] = cond_select
 
             qb.selects[0][1] = cond_select
+
+        if qb.is_compare:
+            qb.selects.insert(1, ['', 'Difference %'])
+            qb.selects.insert(1, ['', 'Difference'])
+
+        if qb.count_conditions:
+            qb.selects = self.processCountConditions(qb,
+                                                     agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
         if qb.with_query and qb.conditions:
             qb.with_query.selects = [['COUNT(*)', 'Total_Responses'], ["SUM({})".format(

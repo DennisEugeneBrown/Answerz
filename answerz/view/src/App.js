@@ -77,7 +77,7 @@ function App() {
     const [weight, setWeight] = React.useState('');
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.38'
+    const versionNumber = '2.0.39'
 
     const [getInputState, setInputState] = useState('');
 
@@ -176,12 +176,19 @@ function App() {
     const handleSubmit2 = () => {
         setListening(false);
         setSubmitting(true);
-        axios.post('http://localhost:1234/answerz', {'text': getInputState})
+        axios.post('http://localhost:1234/answerz', {
+            'text': getInputState,
+            'prev_query': (getInputState.toLowerCase().includes('group') || getInputState.toLowerCase().includes('down by') || getInputState.toLowerCase().includes('out by')) ? getPrevQuery : ''
+        })
             .then(response => {
                 console.log("Responded", response)
                 setGetTable(response)
                 setSubmitting(false);
                 setError(false);
+                if (!response.data.follow_up) {
+                    console.log('Updating prev query..')
+                    setPrevQuery(getInputState);
+                }
             }).catch((error) => {
             setSubmitting(false);
             setError(true);
@@ -598,220 +605,187 @@ function App() {
                                             </div>
                                             :
                                             ''}
-
-                                        {/*{getTable.data.other_result ?*/}
-                                        {/*    <div className='table-class'><JsonToTable*/}
-                                        {/*        json={getTable.data.other_result}/></div>*/}
-                                        {/*    :*/}
-                                        {/*    ''}*/}
-
-                                        <Modal
-                                            open={open}
-                                            onClose={handleClose}
-                                            aria-labelledby="modal-modal-title"
-                                            aria-describedby="modal-modal-description"
-                                        >
-                                            <Box sx={style}>
-                                                <Typography id="modal-modal-title" variant="h5" component="h2"
-                                                            textAlign={'center'}>
-                                                    Properties
-                                                </Typography>
-                                                <div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Chart Name"
-                                                            defaultValue=""
-                                                            variant="standard"
-                                                            contentEditable="false"
-                                                        />
-                                                    </div>
-                                                    <div className='PropertiesLabel'>
-                                                        <label>Command</label>
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <label>{getTable.data.query}</label>
-                                                    </div>
-                                                    <div className='PropertiesLabel'>
-                                                        <label>SQL</label>
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <ReactCodeSnippet lang="sql"
-                                                                          code={getTable.data.queries[0].toUpperCase()}/>
-                                                    </div>
-                                                    {/*<div className='PropertiesLabel'>*/}
-                                                    {/*    <label>Columns</label>*/}
-                                                    {/*</div>*/}
-                                                    {/*<div className='PropertiesField'>*/}
-                                                    {/*    {Object.keys(getTable.data.tables[0].rows[0]).map(val => {*/}
-                                                    {/*        if (['id', 'Header', 'None'].includes(val))*/}
-                                                    {/*            return;*/}
-                                                    {/*        return (*/}
-                                                    {/*            <div><TextField*/}
-                                                    {/*                // defaultValue={getTable.data.tables[0].chart_data[0][1]}*/}
-                                                    {/*                defaultValue={val}*/}
-                                                    {/*                variant="standard"/></div>);*/}
-                                                    {/*    })}*/}
-                                                    {/*</div>*/}
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Rows"
-                                                            defaultValue={getTable.data.rows}
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    {/*<div className='PropertiesLabel'>*/}
-                                                    {/*    <label>Rows</label>*/}
-                                                    {/*</div>*/}
-                                                    {/*<div className='PropertiesField'>*/}
-                                                    {/*    {getTable.data.tables[0].rows.map(row => {*/}
-                                                    {/*        return (*/}
-                                                    {/*            <div><TextField*/}
-                                                    {/*                // defaultValue={getTable.data.tables[0].chart_data[0][1]}*/}
-                                                    {/*                defaultValue={row['Header']}*/}
-                                                    {/*                variant="standard"/></div>);*/}
-                                                    {/*    })}*/}
-                                                    {/*</div>*/}
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Columns"
-                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Data"
-                                                            defaultValue="Count"
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Active Filters"
-                                                            defaultValue={getTable.data.conditions}
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <Typography id="modal-modal-title" variant="h6" component="h3"
-                                                            textAlign={'center'}>
-                                                    Settings
-                                                </Typography>
-                                                <div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Chart Title"
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="X-Axis Label"
-                                                            defaultValue={getTable.data.tables[0].chart_data[0][0]}
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    <div className='PropertiesField'>
-                                                        <TextField
-                                                            label="Y-Axis Label"
-                                                            defaultValue="Calls Count"
-                                                            variant="standard"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <FormControl>
-                                                            <InputLabel>Weight</InputLabel>
-                                                            <Select
-                                                                label="Weight"
-                                                                value={weight}
-                                                                onChange={handleWeightChange}
-                                                                autoWidth
-                                                            >
-                                                                <MenuItem value="Thin">Thin</MenuItem>
-                                                                <MenuItem value="Medium">Medium</MenuItem>
-                                                                <MenuItem value="Thick">Thick</MenuItem>
-                                                            </Select>
-                                                        </FormControl>
-                                                    </div>
-                                                    <div className='PropertiesCheckBox'>
-                                                        Show Values in Labels
-                                                        <Checkbox label={label} defaultUnchecked/>
-                                                    </div>
-                                                    <div className='PropertiesCheckBox'>
-                                                        Show Percents in Labels
-                                                        <Checkbox label={label} defaultUnchecked/>
-                                                    </div>
-                                                    <div className='PropertiesCheckBox'>
-                                                        Exclude Final Period
-                                                        <Checkbox label={label} defaultUnchecked/>
-                                                    </div>
-                                                    <div className='PropertiesCheckBox'>
-                                                        Exclude Totals
-                                                        <Checkbox label={label} defaultUnchecked/>
-                                                    </div>
-                                                </div>
-                                                <React.Fragment>
-                                                    <Typography id="modal-modal-title" variant="h6" component="h3"
-                                                                textAlign={'center'}>
-                                                        <Button variant="outlined"
-                                                                onClick={handleChildModalOpen}>Actions</Button>
-                                                    </Typography>
-                                                    <Modal
-                                                        hideBackdrop
-                                                        open={childModalOpen}
-                                                        onClose={handleChildModalClose}
-                                                        aria-labelledby="child-modal-title"
-                                                        aria-describedby="child-modal-description"
-                                                    >
-                                                        <Box sx={{...style, width: 200}}>
-                                                            <div>
-                                                                <div>
-                                                                    <Button variant="contained">Add/Remove Bars</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Highlight
-                                                                        Element</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Format</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Color</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Reference Line</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Reference Band</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Filters</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">SPRT</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Save</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Share</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Transpose</Button>
-                                                                </div>
-                                                                <div>
-                                                                    <Button variant="contained">Embed Image</Button>
-                                                                </div>
-                                                                <Button onClick={handleChildModalClose}
-                                                                        variant="contained">OK</Button>
-                                                                <Button onClick={handleChildModalClose}
-                                                                        variant="contained">Quit</Button>
-                                                            </div>
-                                                        </Box>
-                                                    </Modal>
-                                                </React.Fragment>
-                                            </Box>
-                                        </Modal>
+                                        {/*<Modal*/}
+                                        {/*    open={open}*/}
+                                        {/*    onClose={handleClose}*/}
+                                        {/*    aria-labelledby="modal-modal-title"*/}
+                                        {/*    aria-describedby="modal-modal-description"*/}
+                                        {/*>*/}
+                                        {/*    <Box sx={style}>*/}
+                                        {/*        <Typography id="modal-modal-title" variant="h5" component="h2"*/}
+                                        {/*                    textAlign={'center'}>*/}
+                                        {/*            Properties*/}
+                                        {/*        </Typography>*/}
+                                        {/*        <div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Chart Name"*/}
+                                        {/*                    defaultValue=""*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                    contentEditable="false"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesLabel'>*/}
+                                        {/*                <label>Command</label>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <label>{getTable.data.query}</label>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesLabel'>*/}
+                                        {/*                <label>SQL</label>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <ReactCodeSnippet lang="sql"*/}
+                                        {/*                                  code={getTable.data.queries[0].toUpperCase()}/>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Rows"*/}
+                                        {/*                    defaultValue={getTable.data.rows}*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Columns"*/}
+                                        {/*                    defaultValue={getTable.data.tables[0].chart_data[0][0]}*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Data"*/}
+                                        {/*                    defaultValue="Count"*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Active Filters"*/}
+                                        {/*                    defaultValue={getTable.data.conditions}*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*        </div>*/}
+                                        {/*        <Typography id="modal-modal-title" variant="h6" component="h3"*/}
+                                        {/*                    textAlign={'center'}>*/}
+                                        {/*            Settings*/}
+                                        {/*        </Typography>*/}
+                                        {/*        <div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Chart Title"*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="X-Axis Label"*/}
+                                        {/*                    defaultValue={getTable.data.tables[0].chart_data[0][0]}*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesField'>*/}
+                                        {/*                <TextField*/}
+                                        {/*                    label="Y-Axis Label"*/}
+                                        {/*                    defaultValue="Calls Count"*/}
+                                        {/*                    variant="standard"*/}
+                                        {/*                />*/}
+                                        {/*            </div>*/}
+                                        {/*            <div>*/}
+                                        {/*                <FormControl>*/}
+                                        {/*                    <InputLabel>Weight</InputLabel>*/}
+                                        {/*                    <Select*/}
+                                        {/*                        label="Weight"*/}
+                                        {/*                        value={weight}*/}
+                                        {/*                        onChange={handleWeightChange}*/}
+                                        {/*                        autoWidth*/}
+                                        {/*                    >*/}
+                                        {/*                        <MenuItem value="Thin">Thin</MenuItem>*/}
+                                        {/*                        <MenuItem value="Medium">Medium</MenuItem>*/}
+                                        {/*                        <MenuItem value="Thick">Thick</MenuItem>*/}
+                                        {/*                    </Select>*/}
+                                        {/*                </FormControl>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesCheckBox'>*/}
+                                        {/*                Show Values in Labels*/}
+                                        {/*                <Checkbox label={label} defaultUnchecked/>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesCheckBox'>*/}
+                                        {/*                Show Percents in Labels*/}
+                                        {/*                <Checkbox label={label} defaultUnchecked/>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesCheckBox'>*/}
+                                        {/*                Exclude Final Period*/}
+                                        {/*                <Checkbox label={label} defaultUnchecked/>*/}
+                                        {/*            </div>*/}
+                                        {/*            <div className='PropertiesCheckBox'>*/}
+                                        {/*                Exclude Totals*/}
+                                        {/*                <Checkbox label={label} defaultUnchecked/>*/}
+                                        {/*            </div>*/}
+                                        {/*        </div>*/}
+                                        {/*        <React.Fragment>*/}
+                                        {/*            <Typography id="modal-modal-title" variant="h6" component="h3"*/}
+                                        {/*                        textAlign={'center'}>*/}
+                                        {/*                <Button variant="outlined"*/}
+                                        {/*                        onClick={handleChildModalOpen}>Actions</Button>*/}
+                                        {/*            </Typography>*/}
+                                        {/*            <Modal*/}
+                                        {/*                hideBackdrop*/}
+                                        {/*                open={childModalOpen}*/}
+                                        {/*                onClose={handleChildModalClose}*/}
+                                        {/*                aria-labelledby="child-modal-title"*/}
+                                        {/*                aria-describedby="child-modal-description"*/}
+                                        {/*            >*/}
+                                        {/*                <Box sx={{...style, width: 200}}>*/}
+                                        {/*                    <div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Add/Remove Bars</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Highlight*/}
+                                        {/*                                Element</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Format</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Color</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Reference Line</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Reference Band</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Filters</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">SPRT</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Save</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Share</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Transpose</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <div>*/}
+                                        {/*                            <Button variant="contained">Embed Image</Button>*/}
+                                        {/*                        </div>*/}
+                                        {/*                        <Button onClick={handleChildModalClose}*/}
+                                        {/*                                variant="contained">OK</Button>*/}
+                                        {/*                        <Button onClick={handleChildModalClose}*/}
+                                        {/*                                variant="contained">Quit</Button>*/}
+                                        {/*                    </div>*/}
+                                        {/*                </Box>*/}
+                                        {/*            </Modal>*/}
+                                        {/*        </React.Fragment>*/}
+                                        {/*    </Box>*/}
+                                        {/*</Modal>*/}
                                     </div>
                                     :
                                     getError ?

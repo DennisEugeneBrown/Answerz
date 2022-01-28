@@ -68,7 +68,9 @@ class Answerz(Resource):
                         rows.append(row[supp_col])
                     extra_rows.append(rows)
                 cols = [col for col in res['result']['OldOutput'][0] if
-                        col != group[1] and isinstance(res['result']['OldOutput'][0][col], int)] if res['result'][
+                        col != group[1] and isinstance(res['result']['OldOutput'][0][col],
+                                                       int) and col not in ['Difference', 'Difference %']] if \
+                res['result'][
                     'OldOutput'] else [col_2]
                 if len(cols) > 1:
                     cols.remove(conds) if conds in cols else cols.remove(col_2)

@@ -67,7 +67,8 @@ class QueryBlock:
         allSelects = []
         allSelects.extend([group for group in self.groups[:] if
                            group[0] not in self.groups_to_skip and group not in self.selects])
-        if self.conditions_by_category:
+        pivot_condition_selects = []
+        if self.conditions_by_category and not self.count_conditions:
             pivot_condition_category = list(self.conditions_by_category.keys())[-1]
             pivot_conditions_count = len(self.conditions_by_category[pivot_condition_category])
             other_condition_categories = list(self.conditions_by_category.keys())[:-1]
@@ -82,9 +83,24 @@ class QueryBlock:
                 if other_condition_selects:
                     allSelects.extend(other_condition_selects)
                 if pivot_conditions_count > 1:
-                    allSelects.append(self.generateConditionalCountSelect({pivot_condition_category: [condition]}))
+                    pivot_condition_select = self.generateConditionalCountSelect(
+                        {pivot_condition_category: [condition]})
+                    pivot_condition_selects.append(pivot_condition_select)
+                    allSelects.append(pivot_condition_select)
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
+        for ix, select in enumerate(allSelects):
+            if select[1] == 'Difference':
+                allSelects[ix][0] = pivot_condition_selects[-1][0] + '-' + pivot_condition_selects[0][0]
+            if select[1] == 'Difference %':
+                allSelects[ix][0] = '(' + pivot_condition_selects[-1][0] + '-' + pivot_condition_selects[0][
+                    0] + ')' + '/' + pivot_condition_selects[-1][0] + '*' + '100'
+                left = pivot_condition_selects[-1][0]
+                right = pivot_condition_selects[0][0]
+                allSelects[ix][
+                    0] = "CAST(CAST((CAST(({left} - {right}) AS FLOAT) / {right}) * 100.0 AS decimal(10, 2)) AS varchar) + '%'".format(
+                    left=left, right=right)
+                print(allSelects[ix][0])
 
         return allSelects
 
