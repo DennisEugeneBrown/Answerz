@@ -19,6 +19,38 @@ class QueryProcessor:
         sql = qbr.render(qb)
         return sql
 
+    def format_output(self, rows, headers, headers_no_groups):
+        totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows if row[header] != 'Blank']))
+                  for _, header in
+                  headers_no_groups]
+        differences = [
+            (float(str(rows[-1][header]).replace('%', '')) if rows[-1][header] != 'Blank' else 0) - (float(
+                str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0) for _, header in
+            headers_no_groups]
+        totals_row = {**{header: 'Total' for _, header in headers[:-2]},
+                      **{header: totals[ix] for ix, (_, header) in enumerate(headers_no_groups)}}
+        differences_row = {**{header: 'Difference' for _, header in headers[:-2]},
+                           **{header: differences[ix] if ix < len(headers_no_groups) - 2 else '' for ix, (_, header)
+                              in enumerate(headers_no_groups)}}
+        return {'OldOutput': rows, 'Output': rows + [totals_row, differences_row]}
+
+    def format_output_transposed(self, rows, headers, headers_no_groups):
+        transposed_output = []
+        for _, header in headers_no_groups:
+            transposed_row = {'': header}
+            total = 0
+            for row in rows:
+                new_header = str(row[headers[0][1]])
+                transposed_row[new_header] = row[header]
+                total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
+            transposed_row['Total'] = round(total)
+            if rows:
+                transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
+                                                                                                    header] != 'Blank' else 0 - float(
+                    str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
+            transposed_output.append(transposed_row)
+        return {'OldOutput': rows, 'Output': transposed_output}
+
     def run_query(self, sql, headers, distinct_values_query=False, groups=[]):
         msr = MSSQLReader(self.db_config)
         msr.connect(msr.server)
@@ -31,39 +63,15 @@ class QueryProcessor:
                 row_dictionary[col[1]] = row[col_index] if row[col_index] else 'Blank'
                 col_index = col_index + 1
             rows.append(row_dictionary)
+
         if distinct_values_query:
             return {'OldOutput': rows, 'Output': rows}
+
         headers_no_groups = [header for header in headers if header not in groups]
         if len(rows) > 4:
-            totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows if row[header] != 'Blank']))
-                      for _, header in
-                      headers_no_groups]
-            differences = [
-                (float(str(rows[-1][header]).replace('%', '')) if rows[-1][header] != 'Blank' else 0) - (float(
-                    str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0) for _, header in
-                headers_no_groups]
-            totals_row = {**{header: 'Total' for _, header in headers[:-2]},
-                          **{header: totals[ix] for ix, (_, header) in enumerate(headers_no_groups)}}
-            differences_row = {**{header: 'Difference' for _, header in headers[:-2]},
-                               **{header: differences[ix] if ix < len(headers_no_groups) - 2 else '' for ix, (_, header)
-                                  in enumerate(headers_no_groups)}}
-            return {'OldOutput': rows, 'Output': rows + [totals_row, differences_row]}
-        transposed_output = []
-        for _, header in headers_no_groups:
-            transposed_row = {'': header}
-            total = 0
-            for row in rows:
-                # for _, new_header in headers[:-2]:
-                new_header = str(row[headers[0][1]])
-                transposed_row[new_header] = row[header]
-                total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
-            transposed_row['Total'] = round(total)
-            if rows:
-                transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
-                                                                                                    header] != 'Blank' else 0 - float(
-                    str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
-            transposed_output.append(transposed_row)
-        return {'OldOutput': rows, 'Output': transposed_output}
+            return self.format_output(rows, headers, headers_no_groups)
+
+        return self.format_output_transposed(rows, headers, headers_no_groups)
 
     def test(self):
         # global mssql_server

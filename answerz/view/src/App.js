@@ -77,7 +77,7 @@ function App() {
     const [weight, setWeight] = React.useState('');
 
     const [getPrevQuery, setPrevQuery] = useState('')
-    const versionNumber = '2.0.39'
+    const versionNumber = '2.0.40'
 
     const [getInputState, setInputState] = useState('');
 
