@@ -70,12 +70,12 @@ class Answerz(Resource):
                 cols = [col for col in res['result']['OldOutput'][0] if
                         col != group[1] and isinstance(res['result']['OldOutput'][0][col],
                                                        int) and col not in ['Difference', 'Difference %']] if \
-                res['result'][
-                    'OldOutput'] else [col_2]
+                    res['result'][
+                        'OldOutput'] else [col_2]
                 if len(cols) > 1:
                     cols.remove(conds) if conds in cols else cols.remove(col_2)
                 chart_data.append([col_1] + list(reversed(cols)) + extra_cols)
-                for ix, row in enumerate(res['result']['OldOutput']):
+                for ix, row in enumerate(res['result']['OldOutput'][:-1]):
                     if row[col_1] in extra_rows_by_group:  # Fill up chart data for the corresponding group values
                         chart_data.append(
                             [str(row[col_1])] + [row[col] for col in list(reversed(cols))] + [

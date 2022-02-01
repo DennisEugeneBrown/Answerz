@@ -18,11 +18,7 @@ class QueryBlockRenderer:
 
             qb.selects[0][1] = cond_select
 
-        if qb.is_compare:
-            qb.selects.insert(1, ['', 'Difference %'])
-            qb.selects.insert(1, ['', 'Difference'])
-
-        if qb.count_conditions:
+        if qb.count_conditions or qb.date_range_conditions:
             qb.selects = self.processCountConditions(qb,
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
@@ -43,7 +39,7 @@ class QueryBlockRenderer:
                 qb.selects.append(
                     ["CAST(CAST(COUNT(*) * 100.0 / {} AS decimal(10, 2)) AS varchar) + '%'".format(
                         qb.with_query.selects[0][-1]),
-                        'Percentage'.format(qb.with_query.selects[-1][-1])])
+                        'Total % '.format(qb.with_query.selects[-1][-1])])
 
             if not qb.is_total:
                 qb.totals = QueryBlock()
@@ -65,9 +61,15 @@ class QueryBlockRenderer:
                     qb.totals.groups.append(['Blanks_or_Nulls', 'Blanks_or_Nulls'])
                 qb.totals.unpivot_selects = [['col', 'col'], ['value', 'value'],
                                              [
-                                                 "cast(cast(value * 100.0 / [Total_Records] as decimal(10, 2)) as varchar) + '%'",
-                                                 'percentage']]
+                                                 "cast(cast(value * 100.0 * 2.0 / [Total_Records] as decimal(10, 2)) as varchar) + '%'",
+                                                 'Total %']]
                 qb.totals.unpivot_cols = [col[0] for col in qb.totals.groups]
+
+        if qb.is_compare:
+            qb.selects.append(['', 'Difference'])
+            qb.selects.append(['', 'Difference %'])
+            # qb.selects.insert(1, ['', 'Difference %'])
+            # qb.selects.insert(1, ['', 'Difference'])
 
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
@@ -77,7 +79,7 @@ class QueryBlockRenderer:
 
         group_sql = self.renderGroups(qb)
         if group_sql:
-            sql = sql + "\nGROUP BY " + group_sql
+            sql = sql + "\nGROUP BY " + group_sql + ' WITH ROLLUP'
 
         if qb.unions and len(qb.groups) < 2:
             qbr = QueryBlockRenderer()
@@ -118,6 +120,10 @@ class QueryBlockRenderer:
 
         # Handle the group selects
         for term in qb.getAllSelects():
+            # if term in qb.groups:
+            #     sql = sql + sep + "IIF(GROUPING([{field}]) = 1, 'Total', [{field}])".format(field=term[0]) + " AS [" + \
+            #           term[1] + "]"
+            # else:
             sql = sql + sep + term[0] + " AS [" + term[1] + "]"
             sep = ", "
 

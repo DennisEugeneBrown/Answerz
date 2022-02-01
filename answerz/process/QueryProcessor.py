@@ -32,10 +32,12 @@ class QueryProcessor:
         differences_row = {**{header: 'Difference' for _, header in headers[:-2]},
                            **{header: differences[ix] if ix < len(headers_no_groups) - 2 else '' for ix, (_, header)
                               in enumerate(headers_no_groups)}}
-        return {'OldOutput': rows, 'Output': rows + [totals_row, differences_row]}
+        rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
+        return {'OldOutput': rows, 'Output': rows}
 
     def format_output_transposed(self, rows, headers, headers_no_groups):
         transposed_output = []
+        rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
         for _, header in headers_no_groups:
             transposed_row = {'': header}
             total = 0
@@ -43,11 +45,11 @@ class QueryProcessor:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
                 total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
-            transposed_row['Total'] = round(total)
-            if rows:
-                transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
-                                                                                                    header] != 'Blank' else 0 - float(
-                    str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
+            # transposed_row['Total'] = round(total)
+            # if rows:
+            #     transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
+            #                                                                                         header] != 'Blank' else 0 - float(
+            #         str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
             transposed_output.append(transposed_row)
         return {'OldOutput': rows, 'Output': transposed_output}
 

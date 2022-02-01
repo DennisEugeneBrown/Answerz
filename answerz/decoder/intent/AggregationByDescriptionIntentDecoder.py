@@ -131,7 +131,7 @@ class AggregationByDescriptionIntentDecoder:
                     _field_names or _logicalLabel or default_grouping):
                 qb = handle_groupings(mapped_groupings, qb)
                 qb.selects.append([
-                    "CAST(CAST({count} * 100.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
+                    "CAST(CAST({count} * 100.0 * 2.0 / sum({count}) over () AS decimal(10, 2)) AS varchar) + '%'".format(
                         count=qb.selects[0][0]),
-                    'Percentage'])
+                    'Total %'])
         return entities, qb

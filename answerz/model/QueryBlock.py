@@ -69,7 +69,7 @@ class QueryBlock:
                            group[0] not in self.groups_to_skip and group not in self.selects])
         pivot_condition_selects = []
         if self.conditions_by_category and not self.count_conditions:
-            pivot_condition_category = list(self.conditions_by_category.keys())[-1]
+            pivot_condition_category = list(self.conditions_by_category.keys())[0]
             pivot_conditions_count = len(self.conditions_by_category[pivot_condition_category])
             other_condition_categories = list(self.conditions_by_category.keys())[:-1]
             for condition in self.conditions_by_category[pivot_condition_category]:
@@ -87,6 +87,16 @@ class QueryBlock:
                         {pivot_condition_category: [condition]})
                     pivot_condition_selects.append(pivot_condition_select)
                     allSelects.append(pivot_condition_select)
+        else:
+            pivot_condition_selects = []
+            for condition_1, condition_2 in self.date_range_conditions.values():
+                pivot_condition_select_1 = self.generateConditionalCountSelect(
+                    {'DateRange': [condition_1]})
+                pivot_condition_selects.append(pivot_condition_select_1)
+                pivot_condition_select_2 = self.generateConditionalCountSelect(
+                    {'DateRange': [condition_1]})
+                pivot_condition_selects.append(pivot_condition_select_2)
+                allSelects.append([condition_1, condition_2])
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
         for ix, select in enumerate(allSelects):
@@ -98,7 +108,7 @@ class QueryBlock:
                 left = pivot_condition_selects[-1][0]
                 right = pivot_condition_selects[0][0]
                 allSelects[ix][
-                    0] = "CAST(CAST((CAST(({left} - {right}) AS FLOAT) / {right}) * 100.0 AS decimal(10, 2)) AS varchar) + '%'".format(
+                    0] = "CAST(CAST((CAST(({left} - {right}) AS FLOAT) / NULLIF({right}, 0)) * 100.0 AS decimal(10, 2)) AS varchar) + '%'".format(
                     left=left, right=right)
                 print(allSelects[ix][0])
 
