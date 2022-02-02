@@ -68,8 +68,6 @@ class QueryBlockRenderer:
         if qb.is_compare:
             qb.selects.append(['', 'Difference'])
             qb.selects.append(['', 'Difference %'])
-            # qb.selects.insert(1, ['', 'Difference %'])
-            # qb.selects.insert(1, ['', 'Difference'])
 
         sql = sql + "\nSELECT\n\t" + self.renderSelect(qb)
         sql = sql + "\nFROM\n\t" + self.renderFrom(qb)
