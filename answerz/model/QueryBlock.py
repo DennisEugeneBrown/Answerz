@@ -58,7 +58,7 @@ class QueryBlock:
         rendered_condition = qbr.renderConditions(conditions)
         sql = "Count(IIF({}, 1, null))".format(rendered_condition)
         field_name = ' And '.join(
-            [('Not ' if cond[0][0] == 'not' else '') + cond[0][-1].replace('%', '') for cond in conditions.values()])
+            [('Not ' if cond[0][0] == 'not' else '') + str(cond[0][-1]).replace('%', '') for cond in conditions.values()])
         return [sql, field_name]
 
     def getAllSelects(self):

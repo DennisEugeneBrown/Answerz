@@ -96,7 +96,7 @@ class AnswerzProcessor:
                     col = conds
                 else:
                     col = pq.queryIntent[0]  # eg. Calls
-                total = sum([row[col] for row in result['OldOutput'] if col in row])
+                total = result['OldOutput'][-1][col] if col in result['OldOutput'][-1] else 0
                 if not total and result['OldOutput']:
                     total = ', '.join([str(val) for val in result['OldOutput'][0].values() if isinstance(val, int)])
 

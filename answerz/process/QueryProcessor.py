@@ -20,18 +20,6 @@ class QueryProcessor:
         return sql
 
     def format_output(self, rows, headers, headers_no_groups):
-        totals = [round(sum([float(str(row[header]).replace('%', '')) for row in rows if row[header] != 'Blank']))
-                  for _, header in
-                  headers_no_groups]
-        differences = [
-            (float(str(rows[-1][header]).replace('%', '')) if rows[-1][header] != 'Blank' else 0) - (float(
-                str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0) for _, header in
-            headers_no_groups]
-        totals_row = {**{header: 'Total' for _, header in headers[:-2]},
-                      **{header: totals[ix] for ix, (_, header) in enumerate(headers_no_groups)}}
-        differences_row = {**{header: 'Difference' for _, header in headers[:-2]},
-                           **{header: differences[ix] if ix < len(headers_no_groups) - 2 else '' for ix, (_, header)
-                              in enumerate(headers_no_groups)}}
         rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
         return {'OldOutput': rows, 'Output': rows}
 
@@ -44,7 +32,7 @@ class QueryProcessor:
             for row in rows:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
-                total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
+                # total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
             # transposed_row['Total'] = round(total)
             # if rows:
             #     transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
@@ -70,10 +58,11 @@ class QueryProcessor:
             return {'OldOutput': rows, 'Output': rows}
 
         headers_no_groups = [header for header in headers if header not in groups]
-        if len(rows) > 4:
-            return self.format_output(rows, headers, headers_no_groups)
+        return self.format_output(rows, headers, headers_no_groups)
 
-        return self.format_output_transposed(rows, headers, headers_no_groups)
+        # if len(rows) > 4:
+        #     return self.format_output(rows, headers, headers_no_groups)
+        # return self.format_output_transposed(rows, headers, headers_no_groups)
 
     def test(self):
         # global mssql_server
