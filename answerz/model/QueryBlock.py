@@ -52,13 +52,14 @@ class QueryBlock:
     def addGroup(self, group_field):
         self.groups.append(group_field)
 
-    def generateConditionalCountSelect(self, conditions):
+    def generateConditionalCountSelect(self, conditions, date_conditions=None):
         from answerz.process.QueryBlockRenderer import QueryBlockRenderer
         qbr = QueryBlockRenderer()
-        rendered_condition = qbr.renderConditions(conditions)
+        rendered_condition = qbr.renderConditions(conditions, date_conditions=date_conditions)
         sql = "Count(IIF({}, 1, null))".format(rendered_condition)
         field_name = ' And '.join(
-            [('Not ' if cond[0][0] == 'not' else '') + str(cond[0][-1]).replace('%', '') for cond in conditions.values()])
+            [('Not ' if cond[0][0] == 'not' else '') + str(cond[0][-1]).replace('%', '') for cond in
+             conditions.values()] + (list(date_conditions.keys()) if date_conditions else []))
         return [sql, field_name]
 
     def getAllSelects(self):
@@ -68,12 +69,20 @@ class QueryBlock:
         allSelects.extend([group for group in self.groups[:] if
                            group[0] not in self.groups_to_skip and group not in self.selects])
         pivot_condition_selects = []
+        other_condition_selects = []
+        pivot_conditions = []
         if self.conditions_by_category and not self.count_conditions:
-            pivot_condition_category = list(self.conditions_by_category.keys())[0]
+            pivot_condition_category = list(self.conditions_by_category.keys())[-1]
             pivot_conditions_count = len(self.conditions_by_category[pivot_condition_category])
             other_condition_categories = list(self.conditions_by_category.keys())[:-1]
+
             for condition in self.conditions_by_category[pivot_condition_category]:
                 other_condition_selects = []
+                for date_range_condition in self.date_range_conditions:
+                    pivot_conditions.append({pivot_condition_category: [condition]})
+                    other_condition_selects.append(self.generateConditionalCountSelect(
+                        {pivot_condition_category: [condition]},
+                        date_conditions={date_range_condition: self.date_range_conditions[date_range_condition]}))
                 for other_condition_category in other_condition_categories:
                     if len(self.conditions_by_category[other_condition_category]) <= 1:
                         continue
@@ -87,16 +96,21 @@ class QueryBlock:
                         {pivot_condition_category: [condition]})
                     pivot_condition_selects.append(pivot_condition_select)
                     allSelects.append(pivot_condition_select)
-        else:
+        if self.date_range_conditions and len(pivot_condition_selects) <= 1:
             pivot_condition_selects = []
-            for condition_1, condition_2 in self.date_range_conditions.values():
-                pivot_condition_select_1 = self.generateConditionalCountSelect(
-                    {'DateRange': [condition_1]})
-                pivot_condition_selects.append(pivot_condition_select_1)
-                pivot_condition_select_2 = self.generateConditionalCountSelect(
-                    {'DateRange': [condition_1]})
-                pivot_condition_selects.append(pivot_condition_select_2)
-                allSelects.append([condition_1, condition_2])
+            for cond in other_condition_selects:
+                allSelects.remove(cond)
+            for date_range_condition in self.date_range_conditions:
+                if pivot_conditions:
+                    for pivot_condition in pivot_conditions:
+                        pivot_condition_select = self.generateConditionalCountSelect(
+                            pivot_condition,
+                            date_conditions={date_range_condition: self.date_range_conditions[date_range_condition]})
+                else:
+                    pivot_condition_select = self.generateConditionalCountSelect(
+                        {}, date_conditions={date_range_condition: self.date_range_conditions[date_range_condition]})
+                pivot_condition_selects.append(pivot_condition_select)
+                allSelects.append(pivot_condition_select)
         allSelects.extend(
             [select for select in self.selects if select[0] not in self.groups_to_skip])
         for ix, select in enumerate(allSelects):

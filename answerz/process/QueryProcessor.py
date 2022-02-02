@@ -32,12 +32,12 @@ class QueryProcessor:
             for row in rows:
                 new_header = str(row[headers[0][1]])
                 transposed_row[new_header] = row[header]
-                # total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
-            # transposed_row['Total'] = round(total)
-            # if rows:
-            #     transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
-            #                                                                                         header] != 'Blank' else 0 - float(
-            #         str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
+                total += float(str(row[header]).replace('%', '')) if row[header] != 'Blank' else 0
+            transposed_row['Total'] = round(total)
+            if rows:
+                transposed_row['Difference'] = float(str(rows[-1][header]).replace('%', '')) if rows[-1][
+                                                                                                    header] != 'Blank' else 0 - float(
+                    str(rows[0][header]).replace('%', '')) if rows[0][header] != 'Blank' else 0
             transposed_output.append(transposed_row)
         return {'OldOutput': rows, 'Output': transposed_output}
 

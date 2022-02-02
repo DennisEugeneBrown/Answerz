@@ -18,7 +18,7 @@ class QueryBlockRenderer:
 
             qb.selects[0][1] = cond_select
 
-        if qb.count_conditions or qb.date_range_conditions:
+        if qb.count_conditions:
             qb.selects = self.processCountConditions(qb,
                                                      agg=qb.queryIntent[1].upper() if qb.queryIntent[1] else 'COUNT')
 
@@ -159,7 +159,7 @@ class QueryBlockRenderer:
         for term in qb.sorts:
             if term[1] == 'ASC':
                 sql = sql + sep + \
-                      "case when ({value} is null or {value} like '') then 1 else 0 end, {value} ASC".format(
+                      "case when ({value} like '') then 1 when {value} is null then 2 else 0 end, {value} ASC".format(
                           value=term[0])
             else:
                 sql = sql + sep + ' '.join(term)

@@ -83,4 +83,6 @@ def handle_groupings(mapped_groupings, qb):
         else:
             if qb.sorts and (qb.selects[0][-1], 'DESC') not in qb.sorts:
                 qb.sorts.append((qb.selects[0][-1], 'DESC'))
+            else:
+                qb.sorts.append((qb.groups[0][0], 'ASC'))
     return qb
