@@ -143,7 +143,9 @@ class AnswerzProcessor:
                                                           'rows': distinct_values_table_rows},
                                 'total': total,
                                 'supp_tables': supp_tables,
-                                'supp_results': supp_results
+                                'supp_results': supp_results,
+                                'query_intent': pq.queryIntent,
+                                'groups': pq.groups
                                 })
         if return_qs:
             return results, pqs, supp_queries
