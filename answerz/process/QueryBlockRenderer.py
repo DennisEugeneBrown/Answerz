@@ -158,9 +158,10 @@ class QueryBlockRenderer:
         # Handle the group selects
         for term in qb.sorts:
             if term[1] == 'ASC':
-                sql = sql + sep + \
-                      "case when ({value} like '') then 1 when {value} is null then 2 else 0 end, {value} ASC".format(
-                          value=term[0])
+                # sql = sql + sep + \
+                #       "case when ({value} like '') then 1 when {value} is null then 2 else 0 end, {value} ASC".format(
+                #           value=term[0])
+                sql = sql + sep + '[' + (qb.selects[-2][-1] if isinstance(qb.selects[-2], list) else qb.selects[-2]) + ']'
             else:
                 sql = sql + sep + ' '.join(term)
             sep = ", "
