@@ -97,13 +97,14 @@ def generate_distinct_values_table(tables, out_qs, ap, qs, qbr, out, distinct_va
 
 
 def generate_chart_properties(text, sqls, results):
+    # return
     return {'chart_name': text,
             'command': text,
             'sql': '\n'.join([sql.upper() for sql in sqls]),
             'image': None,
-            'rows': ' '.join(results[0]['query_intent']),
-            'columns': ', '.join([result[1] for result in results]),
-            'data': ' '.join(results[0]['query_intent']),
+            'rows': ', '.join(results[0]['query_intent']),
+            'columns': ', '.join(results[0]['result']['Output'][0].keys()),
+            'data': ', '.join(results[0]['query_intent']),
             'active_filters': '',
             'chart_title': '',
             'x_axis_label': '',

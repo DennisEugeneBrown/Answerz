@@ -287,6 +287,7 @@ export default class MainContainer extends Component {
                         handleCloseChartProperties={this.closeChartProperties}
                         tables={tableResponse.data.tables}
                         query={tableResponse.data.query}
+                        properties={tableResponse.data.chart_properties}
                     />
                 }
 

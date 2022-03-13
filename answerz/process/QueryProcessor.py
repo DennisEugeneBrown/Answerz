@@ -20,12 +20,12 @@ class QueryProcessor:
         return sql
 
     def format_output(self, rows, headers, headers_no_groups):
-        rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
+        rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-2]] == 'Blank' else rows[-1][headers[0][-2]]
         return {'OldOutput': rows, 'Output': rows}
 
     def format_output_transposed(self, rows, headers, headers_no_groups):
         transposed_output = []
-        rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
+        # rows[-1][headers[0][-1]] = 'All' if rows[-1][headers[0][-1]] == 'Blank' else rows[-1][headers[0][-1]]
         for _, header in headers_no_groups:
             transposed_row = {'': header}
             total = 0

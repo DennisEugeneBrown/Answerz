@@ -28,7 +28,7 @@ function PaperComponent(props) {
 }
 
 
-export default function ChartProperties({shouldOpenChartProperties, handleCloseChartProperties, tables, query}) {
+export default function ChartProperties({shouldOpenChartProperties, handleCloseChartProperties, tables, query, properties}) {
 
     return (
         <div className="dialog">
@@ -49,20 +49,25 @@ export default function ChartProperties({shouldOpenChartProperties, handleCloseC
                         />
                         <TextField
                             label="Command"
-                            defaultValue={query}
+                            defaultValue={properties.sql}
                             variant="standard"
                             inputProps={
                                 {readOnly: true,}
                             }
                         />
                         <TextField
-                            label="Horizontal Axis Label"
-                            defaultValue={tables[0].chart_data[0][0]}
+                            label="Rows"
+                            defaultValue={properties.rows}
                             variant="standard"
                         />
                         <TextField
-                            label="Vertical Axis Label"
-                            defaultValue={tables[0].chart_data[0][1]}
+                            label="Columns"
+                            defaultValue={properties.columns}
+                            variant="standard"
+                        />
+                        <TextField
+                            label="Data"
+                            defaultValue={properties.data}
                             variant="standard"
                         />
                         <FormControlLabel control={<Checkbox defaultChecked/>}
