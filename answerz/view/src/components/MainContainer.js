@@ -10,7 +10,7 @@ import axios from "axios";
 import './MainContainer.scss';
 import {Paper} from "@material-ui/core";
 
-const VERSION_NUMBER = '2.0.42';
+const VERSION_NUMBER = '2.0.43';
 const VOICE_COMMANDS = Object.freeze(
     {
         "TABLE": "table",

@@ -55,6 +55,7 @@ class QueryProcessor:
             rows.append(row_dictionary)
 
         if distinct_values_query:
+            rows = [row for row in rows if row[headers[0][-1]] != 'Blank']
             return {'OldOutput': rows, 'Output': rows}
 
         headers_no_groups = [header for header in headers if header not in groups]

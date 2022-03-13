@@ -50,8 +50,10 @@ class AggregationByDescriptionIntentDecoder:
         }
 
         string_operators_mapping = {
+            'Startswith': "{} lk {}%",
             'startsWith': "{} lk {}%",
             'endsWith': "{} lk %{}",
+            'Endswith': "{} lk %{}",
             'contains': "{} lk %{}%",
         }
 
