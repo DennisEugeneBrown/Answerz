@@ -1,0 +1,11 @@
+@use './src/variables' as v;
+
+.dialog {
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: v.$margin-mid;
+  }
+}

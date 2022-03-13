@@ -1,0 +1,90 @@
+.App {
+    text-align: center;
+}
+
+.App-logo {
+    height: 40vmin;
+    pointer-events: none;
+}
+
+.PropertiesField {
+    margin-bottom: 1vw;
+    font-size: medium;
+    overflow: no-content;
+}
+
+.PropertiesCheckBox{
+    margin-top: 0.5vw;
+    font-size: medium;
+    overflow: no-content;
+}
+
+.PropertiesLabel {
+    margin-bottom: 0.5vw;
+    font-size: small;
+}
+
+
+@media (prefers-reduced-motion: no-preference) {
+    .App-logo {
+        animation: App-logo-spin infinite 20s linear;
+    }
+}
+
+
+.App-header {
+    background-color: #ffffff;
+    min-height: 200vh;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    vertical-align: top;
+    justify-content: center;
+    /*font-size: calc(10px + 2vmin);*/
+    color: black;
+}
+
+.App-link {
+    color: #61dafb;
+}
+
+.wrapper {
+    padding: 5px 20px;
+}
+
+.wrapper fieldset {
+    margin: 20px 0;
+}
+
+/*.rvi-microphone {*/
+/*    top: 0 !important;*/
+/*    padding-top: 0 !important;*/
+/*    margin-right: 5px !important;*/
+/*    width: calc(7% * var(--landscape-width)) !important;*/
+/*    height: 100% !important;*/
+/*    left: 0.5vw !important;*/
+/*    right: 2vw !important;*/
+/*}*/
+
+/*
+.css-1z4p5c-MuiDataGrid-root {
+    font-size: 3vw !important;
+} */
+
+/* .MuiButton-root {
+    font-size: 1vw !important;
+    margin: 2vw !important;
+} */
+
+
+@keyframes App-logo-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+

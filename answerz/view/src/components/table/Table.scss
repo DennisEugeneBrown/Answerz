@@ -1,0 +1,27 @@
+@use './src/variables' as v;
+
+.table-container {
+  height: 100%;
+}
+
+.MuiDataGrid-columnHeaderTitleContainer {
+  font-size: xx-large;
+  justify-content: center;
+  background-color: rgba(235, 235, 235, .7);
+}
+
+.MuiDataGrid-columnHeaderTitle {
+  font-size: v.$font-x-large;
+}
+
+.MuiDataGrid-row {
+  :nth-child(2) {
+    background-color: rgba(235, 235, 235, .7);
+  }
+
+  font-size: v.$font-x-large;
+}
+
+.MuiDataGrid-cell {
+
+}
